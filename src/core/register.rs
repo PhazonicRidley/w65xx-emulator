@@ -113,8 +113,9 @@ impl ProgramCounter {
         self.set_byte(data, false);
     }
 
+    /// Increments program counter at least by 1. Adds how many parameters were used into the sum. 1 + number of parameters used
     pub fn increment(&mut self, num_params: u16) {
-        self.data += num_params;
+        self.data += num_params + 1;
     }
 }
 

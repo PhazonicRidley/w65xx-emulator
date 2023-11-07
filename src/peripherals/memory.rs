@@ -4,6 +4,7 @@ use std::{
     ops::{Index, IndexMut},
     vec::Vec,
 };
+
 pub fn test() {
     println!("Hello from memory");
 }
@@ -40,6 +41,7 @@ impl VirtualMemory {
         self.buffer = [0; 0xFFFF];
     }
 
+    /// Reads a word in little endian order returns 0xHHLL, where 0xLL is the low byte and 0xHH is the highbyte
     pub fn read_word(&self, low_byte_addr: u16) -> u16 {
         let res =
             ((self[low_byte_addr.wrapping_add(1)] as u16) << 8) | (self[low_byte_addr] as u16);

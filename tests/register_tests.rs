@@ -62,16 +62,28 @@ fn program_counter_byte_manip_test() {
 }
 
 #[test]
-fn program_counter_increment_test() {
+fn program_counter_param_increment_test() {
     // Setup
     let mut pc = ProgramCounter::from(0x8002);
-    let param_counter = 2;
+    let parms = 1;
 
     // Execute
-    pc.increment(param_counter);
+    pc.increment(parms);
 
     // Verify
     assert_eq!(pc.get_data(), 0x8004);
+}
+
+#[test]
+fn program_counter_increment_test() {
+    // Setup
+    let mut pc = ProgramCounter::from(0x8002);
+
+    // Execute
+    pc.increment(0); // No params, instruction only has op code
+
+    // Verify
+    assert_eq!(pc.get_data(), 0x8003);
 }
 
 #[test]

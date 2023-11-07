@@ -31,8 +31,13 @@ impl VirtualMemory {
                 "Not enough space to fit ROM at this memory address",
             ));
         }
+        let mut rom_idx = 0;
         for i in starting_address..0xFFFF {
+            if rom_idx >= rom_data.len() {
+                break;
+            }
             self.buffer[i as usize] = rom_data[(i - starting_address) as usize];
+            rom_idx += 1;
         }
         return Ok(());
     }

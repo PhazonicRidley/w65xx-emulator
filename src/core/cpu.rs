@@ -1,13 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use crate::peripherals::memory::VirtualMemory;
+use crate::peripherals::memory::{self, VirtualMemory};
 
 use super::{instruction::AddressingModes, io::PinIO, register::*};
 
 #[derive(Debug)]
 pub struct CPU {
     // IO
-    pins: PinIO,
 
     // Registers
     pub accumulator: Accumulator,
@@ -22,7 +21,21 @@ pub struct CPU {
 }
 
 impl CPU {
-    // From the prospective of the microprocessor
+    // TODO: Add configs if needed.
+    pub fn new(memory_arc: Arc<Mutex<VirtualMemory>>) -> Self {
+        let mem_arc = memory_arc.clone();
+        return CPU {
+            accumulator: Accumulator::new(),
+            x_register: IndexRegister::new('x'),
+            y_register: IndexRegister::new('y'),
+            program_counter: ProgramCounter::from(0),
+            stack_pointer: StackPointerRegister::new(0x01, 0xFF, memory_arc),
+            processor_status_flags: ProcessorStatusRegister::new(),
+            memory_arc: mem_arc,
+        };
+    }
+
+    /* TODO: delete most likely
     pub fn read_data(&mut self, data: u8) {
         self.pins.data_buffer = data;
     }
@@ -37,7 +50,7 @@ impl CPU {
 
     pub fn get_current_address(&self) -> u16 {
         return self.pins.address_buffer;
-    }
+    } */
 
     pub fn boot_cycle(&mut self) {
         // TODO: 7 clock cycles
@@ -47,7 +60,6 @@ impl CPU {
             let memory = self.memory_arc.try_lock().unwrap();
             program_start_location = memory.read_word(0xFFFC);
         }
-        self.set_current_address(program_start_location);
         self.program_counter.load_data(program_start_location);
     }
 

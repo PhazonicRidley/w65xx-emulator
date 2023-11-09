@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use w65xx_emulator::core::cpu::*;
+use w65xx_emulator::core::instruction::AddressingModes;
 use w65xx_emulator::core::register::{Accumulator, Register};
 use w65xx_emulator::peripherals::memory::{self, VirtualMemory};
 
@@ -24,15 +25,29 @@ fn address_mode_setup() -> CPU {
     let mem_arc = Arc::new(Mutex::new(VirtualMemory::new()));
     // Make a test rom that is padded from 0 to 0xFEFF with 0xEA and
     // Then 0xFEFF to 0xFFFB is just counted up from 0, finally 0xFFFC is 0x00 and 0xFFFD is 0xFF
-    let padding: Vec<u8> = vec![0xEA; 0xFF00];
+    let zp_padding: Vec<u8> = (0x00..=0xFF).collect();
+    let mut stack_page_padding: Vec<u8> = (0x00..=0xFF).collect();
+    stack_page_padding.push(0x00);
+    let padding: Vec<u8> = vec![0xEA; 0xFCFF];
     let test_rom: Vec<u8> = (0..0xFC).collect();
     let reset_vector: Vec<u8> = vec![0x00, 0xFF];
-    let rom = vec![padding, test_rom, reset_vector].concat();
+    let rom = vec![
+        zp_padding,
+        stack_page_padding,
+        padding,
+        test_rom,
+        reset_vector,
+        vec![0x00],
+    ]
+    .concat();
     // let mut i = 0;
     // for byte in &rom {
     //     println!("{:#04x}: {:#02x}", i, byte);
     //     i += 1;
     // }
+
+    // Sanity checks
+    assert_eq!(rom.len(), 0xFFFF);
     assert_eq!(rom[0xFF00], 0x00);
     assert_eq!(rom[0xFFFC], 0x00);
     assert_eq!(rom[0xFFFD], 0xFF);
@@ -40,11 +55,182 @@ fn address_mode_setup() -> CPU {
     let mut cpu = CPU::new(mem_arc.clone());
     cpu.boot_cycle();
     assert_eq!(cpu.program_counter.get_data(), 0xFF00);
-
     return cpu;
 }
 
 #[test]
 fn addr_setup_test() {
     address_mode_setup();
+}
+
+#[test]
+fn addr_immiate_test() {
+    // Setup
+    let cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+
+    // Execute
+    let address = cpu.fetch_address(&AddressingModes::Immediate);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(data, 0x01);
+    assert_eq!(address, 0xFF01);
+    assert_eq!(pc.get_data(), 0xFF00);
+}
+
+#[test]
+fn addr_absolute_test() {
+    // Setup
+    let cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+
+    // Execute
+    let address = cpu.fetch_address(&AddressingModes::Absolute);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0201);
+    assert_eq!(data, 0xea);
+}
+
+#[test]
+fn addr_absolute_x_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let x = &mut cpu.x_register;
+
+    // Execute
+    x.load_data(4);
+    let address = cpu.fetch_address(&AddressingModes::AbsoluteXIndex);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0205);
+    assert_eq!(data, 0xea)
+}
+
+#[test]
+fn addr_absolute_y_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let y = &mut cpu.y_register;
+
+    // Execute
+    y.load_data(7);
+    let address = cpu.fetch_address(&AddressingModes::AbsoluteYIndex);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0208);
+    assert_eq!(data, 0xea)
+}
+
+#[test]
+fn addr_indirect_test() {
+    // Setup
+    let cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+
+    // Execute
+    let address = cpu.fetch_address(&AddressingModes::Indirect);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0xEAEA);
+    assert_eq!(data, 0xEA);
+}
+
+#[test]
+fn addr_indirect_x_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let x = &mut cpu.x_register;
+
+    // Execute
+    x.load_data(5);
+    let address = cpu.fetch_address(&AddressingModes::PreIndexIndirect);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0706); // pc + 1 = 0x1, x = 5. lookup addr = 0x0006, read word: 0x0706
+    assert_eq!(data, 0xea); // almost all padding is 0xEA (nop instruction)
+}
+
+#[test]
+fn addr_indirect_y_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let y = &mut cpu.y_register;
+
+    // Execute
+    y.load_data(10);
+    let address = cpu.fetch_address(&AddressingModes::PostIndexIndirect);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0C0B); // pc + 1 = 0x1, lookup address = 0xB (0x0001 has 0x1) then + 10 (y) gives 0xB
+    assert_eq!(data, 0xea); // almost all padding is 0xEA (nop instruction)
+}
+
+#[test]
+fn addr_zeropage_test() {
+    // Setup
+    let cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+
+    // Execute
+    let address = cpu.fetch_address(&AddressingModes::ZeroPage);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0001);
+    assert_eq!(data, 0x1);
+}
+
+#[test]
+fn addr_zeropage_x_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let x = &mut cpu.x_register;
+
+    // Execute
+    x.load_data(7);
+    let address = cpu.fetch_address(&AddressingModes::ZeroPageXIndex);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x0008);
+    assert_eq!(data, 0x8);
+}
+
+#[test]
+fn addr_zeropage_y_test() {
+    // Setup
+    let mut cpu = address_mode_setup();
+    let pc = &cpu.program_counter;
+    let y = &mut cpu.y_register;
+
+    // Execute
+    y.load_data(10);
+    let address = cpu.fetch_address(&AddressingModes::ZeroPageYIndex);
+    let data = cpu.memory_arc.lock().unwrap()[address];
+
+    // Verify
+    assert_eq!(pc.get_data(), 0xFF00);
+    assert_eq!(address, 0x000B);
+    assert_eq!(data, 0xB);
 }

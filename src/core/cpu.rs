@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use crate::peripherals::memory::{self, VirtualMemory};
+use crate::peripherals::memory::VirtualMemory;
 
-use super::{instruction::AddressingModes, io::PinIO, register::*};
+use super::{instruction::AddressingModes, register::*};
 
 #[derive(Debug)]
 pub struct CPU {

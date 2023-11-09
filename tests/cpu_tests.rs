@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use w65xx_emulator::core::cpu::*;
 use w65xx_emulator::core::instruction::AddressingModes;
-use w65xx_emulator::core::register::{Accumulator, Register};
-use w65xx_emulator::peripherals::memory::{self, VirtualMemory};
+use w65xx_emulator::core::register::Register;
+use w65xx_emulator::peripherals::memory::VirtualMemory;
 
 #[test]
 fn verify_boot_cycle() {

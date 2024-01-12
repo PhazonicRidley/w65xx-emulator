@@ -35,23 +35,6 @@ impl CPU {
         };
     }
 
-    /* TODO: delete most likely
-    pub fn read_data(&mut self, data: u8) {
-        self.pins.data_buffer = data;
-    }
-
-    pub fn write_data(&self) -> u8 {
-        return self.pins.data_buffer;
-    }
-
-    pub fn set_current_address(&mut self, address: u16) {
-        self.pins.address_buffer = address;
-    }
-
-    pub fn get_current_address(&self) -> u16 {
-        return self.pins.address_buffer;
-    } */
-
     pub fn boot_cycle(&mut self) {
         // TODO: 7 clock cycles
         self.program_counter.reset_register();
@@ -63,7 +46,6 @@ impl CPU {
         self.program_counter.load_data(program_start_location);
     }
 
-    // TODO: Unit test this before proceeding further
     pub fn fetch_address(&self, addressing_mode: &AddressingModes) -> u16 {
         let memory = self.memory_arc.try_lock().unwrap();
         let pc = &self.program_counter;

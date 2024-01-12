@@ -1,7 +1,7 @@
 use crate::peripherals::memory::VirtualMemory;
 
 pub mod cpu;
-pub mod instruction;
+pub mod instructions;
 pub mod io;
 pub mod register;
 

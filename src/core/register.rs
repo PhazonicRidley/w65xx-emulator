@@ -6,6 +6,7 @@ use std::{
 
 use crate::peripherals::memory::VirtualMemory;
 use num_traits::Unsigned;
+
 pub trait Register<T: Unsigned> {
     fn load_data(&mut self, data: T);
     fn get_data(&self) -> T;
@@ -227,6 +228,48 @@ impl ProcessorStatusRegister {
         let mask: u8 = 1 << bit_position;
         let bit_state = mask & self.flags;
         return Ok(bit_state != 0);
+    }
+
+    pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {
+        // Tests by summing numbers together and detecting if it overflows or underflows
+        // The inverse of the carry flag is the borrow flag. ~C = B
+        let a = first_operand as u16;
+        let b = second_operand as u16;
+        let true_sum = a + b;
+        println!("True sum: {}", true_sum);
+        let carry_flag = 0x100 & true_sum;
+
+        if carry_flag != 0 {
+            self.set_flag('c').unwrap();
+        } else {
+            self.clear_flag('c').unwrap();
+        }
+    }
+
+    pub fn update_overflow_flag(&mut self, m: u8, n: u8, result: u8) {
+        // Verifies the sign bit of the two operands in relation to their new resulting value. If the sign has flipped, the overflow flag is set.
+        let first_test = (m ^ result) & (n ^ result) & 0x80;
+        // let second_test = &0x80;
+
+        if first_test != 0 {
+            self.set_flag('v').unwrap();
+        } else {
+            self.clear_flag('v').unwrap();
+        }
+    }
+
+    pub fn update_nz_flags(&mut self, data: u8) {
+        let signed_data = data as i8;
+        if signed_data < 0 {
+            self.set_flag('n').unwrap();
+            self.clear_flag('z').unwrap();
+        } else if signed_data == 0 {
+            self.set_flag('z').unwrap();
+            self.clear_flag('n').unwrap();
+        } else {
+            self.clear_flag('n').unwrap();
+            self.clear_flag('z').unwrap();
+        }
     }
 }
 

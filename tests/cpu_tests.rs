@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use w65xx_emulator::core::cpu::*;
-use w65xx_emulator::core::instruction::AddressingModes;
+use w65xx_emulator::core::instructions::utils::AddressingModes;
 use w65xx_emulator::core::register::Register;
 use w65xx_emulator::peripherals::memory::VirtualMemory;
 
@@ -70,7 +70,7 @@ fn addr_immiate_test() {
     let pc = &cpu.program_counter;
 
     // Execute
-    let address = cpu.fetch_address(&AddressingModes::Immediate);
+    let address = cpu.fetch_address(&AddressingModes::Immediate).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -86,7 +86,7 @@ fn addr_absolute_test() {
     let pc = &cpu.program_counter;
 
     // Execute
-    let address = cpu.fetch_address(&AddressingModes::Absolute);
+    let address = cpu.fetch_address(&AddressingModes::Absolute).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -104,7 +104,7 @@ fn addr_absolute_x_test() {
 
     // Execute
     x.load_data(4);
-    let address = cpu.fetch_address(&AddressingModes::AbsoluteXIndex);
+    let address = cpu.fetch_address(&AddressingModes::AbsoluteXIndex).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -122,7 +122,7 @@ fn addr_absolute_y_test() {
 
     // Execute
     y.load_data(7);
-    let address = cpu.fetch_address(&AddressingModes::AbsoluteYIndex);
+    let address = cpu.fetch_address(&AddressingModes::AbsoluteYIndex).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -138,7 +138,7 @@ fn addr_indirect_test() {
     let pc = &cpu.program_counter;
 
     // Execute
-    let address = cpu.fetch_address(&AddressingModes::Indirect);
+    let address = cpu.fetch_address(&AddressingModes::Indirect).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -156,7 +156,9 @@ fn addr_indirect_x_test() {
 
     // Execute
     x.load_data(5);
-    let address = cpu.fetch_address(&AddressingModes::PreIndexIndirect);
+    let address = cpu
+        .fetch_address(&AddressingModes::PreIndexIndirect)
+        .unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -174,7 +176,9 @@ fn addr_indirect_y_test() {
 
     // Execute
     y.load_data(10);
-    let address = cpu.fetch_address(&AddressingModes::PostIndexIndirect);
+    let address = cpu
+        .fetch_address(&AddressingModes::PostIndexIndirect)
+        .unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -190,7 +194,7 @@ fn addr_zeropage_test() {
     let pc = &cpu.program_counter;
 
     // Execute
-    let address = cpu.fetch_address(&AddressingModes::ZeroPage);
+    let address = cpu.fetch_address(&AddressingModes::ZeroPage).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -208,7 +212,7 @@ fn addr_zeropage_x_test() {
 
     // Execute
     x.load_data(7);
-    let address = cpu.fetch_address(&AddressingModes::ZeroPageXIndex);
+    let address = cpu.fetch_address(&AddressingModes::ZeroPageXIndex).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify
@@ -226,7 +230,7 @@ fn addr_zeropage_y_test() {
 
     // Execute
     y.load_data(10);
-    let address = cpu.fetch_address(&AddressingModes::ZeroPageYIndex);
+    let address = cpu.fetch_address(&AddressingModes::ZeroPageYIndex).unwrap();
     let data = cpu.memory_arc.lock().unwrap()[address];
 
     // Verify

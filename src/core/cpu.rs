@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::peripherals::memory::VirtualMemory;
 
-use super::{instruction::AddressingModes, register::*};
+use super::{instructions::utils::AddressingModes, register::*};
 
 #[derive(Debug)]
 pub struct CPU {
@@ -64,40 +64,41 @@ impl CPU {
     }
 
     // TODO: Unit test this before proceeding further
-    pub fn fetch_address(&self, addressing_mode: &AddressingModes) -> u16 {
+    pub fn fetch_address(&self, addressing_mode: &AddressingModes) -> Option<u16> {
         let memory = self.memory_arc.try_lock().unwrap();
         let pc = &self.program_counter;
         let x = &self.x_register;
         let y = &self.y_register;
         match addressing_mode {
-            AddressingModes::Immediate => pc.get_data() + 1,
-            AddressingModes::Absolute => memory.read_word(pc.get_data() + 1),
+            AddressingModes::Immediate => Some(pc.get_data() + 1),
+            AddressingModes::Absolute => Some(memory.read_word(pc.get_data() + 1)),
             AddressingModes::AbsoluteXIndex => {
-                memory.read_word(pc.get_data() + 1) + (x.get_data() as u16)
+                Some(memory.read_word(pc.get_data() + 1) + (x.get_data() as u16))
             }
             AddressingModes::AbsoluteYIndex => {
-                memory.read_word(pc.get_data() + 1) + (y.get_data() as u16)
+                Some(memory.read_word(pc.get_data() + 1) + (y.get_data() as u16))
             }
             AddressingModes::Indirect => {
                 let lookup_addr = memory.read_word(pc.get_data() + 1);
-                memory.read_word(lookup_addr)
+                Some(memory.read_word(lookup_addr))
             }
-            AddressingModes::ZeroPage => memory[pc.get_data() + 1] as u16,
-            AddressingModes::ZeroPageXIndex => (memory[pc.get_data() + 1] + x.get_data()) as u16,
-            AddressingModes::ZeroPageYIndex => (memory[pc.get_data() + 1] + y.get_data()) as u16,
+            AddressingModes::ZeroPage => Some(memory[pc.get_data() + 1] as u16),
+            AddressingModes::ZeroPageXIndex => {
+                Some((memory[pc.get_data() + 1] + x.get_data()) as u16)
+            }
+            AddressingModes::ZeroPageYIndex => {
+                Some((memory[pc.get_data() + 1] + y.get_data()) as u16)
+            }
 
             AddressingModes::PreIndexIndirect => {
                 let lookup_addr = (memory[pc.get_data() + 1 + (x.get_data() as u16)]) as u16;
-                memory.read_word(lookup_addr)
+                Some(memory.read_word(lookup_addr))
             }
             AddressingModes::PostIndexIndirect => {
                 let lookup_addr = (memory[pc.get_data() + 1] + y.get_data()) as u16;
-                memory.read_word(lookup_addr)
+                Some(memory.read_word(lookup_addr))
             }
-            _ => panic!(
-                "Invalid addressing mode, no need to obtain an address for {}",
-                addressing_mode
-            ),
+            _ => None,
         }
     }
 }

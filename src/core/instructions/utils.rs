@@ -1,10 +1,5 @@
 use std::fmt::Display;
 
-use super::{
-    cpu::CPU,
-    register::{ProcessorStatusRegister, Register},
-};
-
 pub enum AddressingModes {
     // Param == Operand, considering all words with little endian as thats how they will appear in machine code.
     Accumulator,       // OPC A
@@ -64,62 +59,71 @@ impl AddressingModes {
     }
 }
 
-fn update_nz_flags(processor_flags: &mut ProcessorStatusRegister, register: &impl Register<u8>) {
-    let signed_data = register.get_data() as i8;
-    if signed_data < 0 {
-        processor_flags.set_flag('n').unwrap();
-        processor_flags.clear_flag('z').unwrap();
-    } else if signed_data == 0 {
-        processor_flags.set_flag('z').unwrap();
-        processor_flags.clear_flag('n').unwrap();
-    } else {
-        processor_flags.clear_flag('n').unwrap();
-        processor_flags.clear_flag('z').unwrap();
-    }
-}
+// TODO: Move to register.rs
+#[cfg(test)]
+mod tests {
+    use std::vec;
 
-// LDA, LDX, LDY
-pub fn load_instruction(
-    addressing_mode: AddressingModes,
-    register: &mut impl Register<u8>,
-    cpu: &mut CPU,
-) {
-    let address: u16 = cpu.fetch_address(&addressing_mode);
-    let pc = &mut cpu.program_counter;
-    let data;
-    {
-        let memory = cpu.memory_arc.try_lock().unwrap();
-        data = memory[address];
-    }
-    register.load_data(data);
-    update_nz_flags(&mut cpu.processor_status_flags, register);
-    pc.increment(addressing_mode.parameter_bytes());
-}
+    use crate::core::register::ProcessorStatusRegister;
 
-// STA, STX, STY
-pub fn store_instruction(
-    addressing_mode: AddressingModes,
-    register: &impl Register<u8>,
-    cpu: &mut CPU,
-) {
-    let address = cpu.fetch_address(&addressing_mode);
-    let pc = &mut cpu.program_counter;
-    {
-        let mut memory = cpu.memory_arc.try_lock().unwrap();
-        memory[address] = register.get_data();
+    #[test]
+    fn overflow_test_addition() {
+        // Setup
+        let first_operands: Vec<u8> = vec![0x50, 0x50, 0x50, 0x50, 0xD0, 0xD0, 0xD0, 0xD0];
+        let second_operands: Vec<u8> = vec![0x10, 0x50, 0x90, 0xD0, 0x10, 0x50, 0x90, 0xD0];
+        let mut results: Vec<bool> = vec![];
+        let expected_results = vec![false, true, false, false, false, false, true, false];
+        let mut status_flags = ProcessorStatusRegister::new();
+        assert_eq!(first_operands.len(), second_operands.len());
+        // Execute
+        for i in 0..first_operands.len() {
+            let sum: u8 = first_operands[i].wrapping_add(second_operands[i]);
+            status_flags.update_overflow_flag(first_operands[i], second_operands[i], sum);
+            results.push(status_flags.check_flag('v').unwrap());
+        }
+
+        // Verify
+        for i in 0..expected_results.len() {
+            assert_eq!(results[i], expected_results[i]);
+        }
     }
 
-    pc.increment(addressing_mode.parameter_bytes());
-}
+    #[test]
+    fn overflow_test_subtraction() {
+        // Setup
+        let first_operands: Vec<u8> = vec![0x50, 0x50, 0x50, 0x50, 0xD0, 0xD0, 0xD0, 0xD0];
+        let second_operands: Vec<u8> = vec![!0xF0, !0xB0, !0x70, !0x30, !0xF0, !0xB0, !0x70, !0x30];
+        let mut results: Vec<bool> = vec![];
+        let expected_results = vec![false, true, false, false, false, false, true, false];
+        let mut status_flags = ProcessorStatusRegister::new();
+        assert_eq!(first_operands.len(), second_operands.len());
+        // Execute
+        for i in 0..first_operands.len() {
+            let sum = first_operands[i].wrapping_add(second_operands[i]);
+            status_flags.update_overflow_flag(first_operands[i], second_operands[i], sum);
+            results.push(status_flags.check_flag('v').unwrap());
+        }
+        // return;
 
-// TAX, TAY, TSX, TXA, TXS, TYA
-pub fn transfer_register(
-    source_register: &impl Register<u8>,
-    destination_register: &mut impl Register<u8>,
-    cpu: &mut CPU,
-) {
-    let data = source_register.get_data();
-    destination_register.load_data(data);
-    update_nz_flags(&mut cpu.processor_status_flags, destination_register);
-    cpu.program_counter.increment(0); // Only possible addressing mode is implied which has no parameters.
+        // Verify
+        for i in 0..expected_results.len() {
+            assert_eq!(results[i], expected_results[i]);
+        }
+    }
+
+    #[test]
+    fn carry_test() {
+        let mut first: u8 = 0xff;
+        let mut second: u8 = 0x2;
+        let mut status_flags = ProcessorStatusRegister::new();
+
+        status_flags.add_update_carry_flag(first, second);
+
+        assert_eq!(status_flags.check_flag('c').unwrap(), true);
+
+        first = 0x80;
+        second = 0x5;
+        status_flags.add_update_carry_flag(first, second);
+        assert_eq!(status_flags.check_flag('c').unwrap(), false);
+    }
 }

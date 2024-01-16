@@ -1,8 +1,7 @@
-use std::ops::Add;
 use std::sync::{Arc, Mutex};
 
 use w65xx_emulator::core::instructions::utils::AddressingModes;
-use w65xx_emulator::core::register::Register;
+use w65xx_emulator::core::register::{Register, StatusFlags};
 use w65xx_emulator::core::{cpu::CPU, instructions::alu};
 use w65xx_emulator::peripherals::memory::VirtualMemory;
 
@@ -46,7 +45,7 @@ fn sbc_test() {
     let mut cpu = alu_test_setup();
     cpu.program_counter.increment(0xee); // PC set to 0xffef, operand is at 0xfff0
     cpu.accumulator.load_data(0x50);
-    cpu.processor_status_flags.set_flag('c').unwrap(); // Programmer is responsible for setting the carry flag to "complete" 2s compliment.
+    cpu.processor_status_flags.set_flag(StatusFlags::Carry); // Programmer is responsible for setting the carry flag to "complete" 2s compliment.
 
     // Execute
     alu::sub_with_carry(&AddressingModes::Immediate, &mut cpu);
@@ -61,14 +60,14 @@ fn sbc_borrow_test() {
     let mut cpu = alu_test_setup();
     cpu.program_counter.increment(0x6e); // PC set to 0xff6f, operand is at 0xff70
     cpu.accumulator.load_data(0xd0);
-    cpu.processor_status_flags.set_flag('c').unwrap(); // Programmer is responsible for setting the carry flag to "complete" 2s compliment.
+    cpu.processor_status_flags.set_flag(StatusFlags::Carry); // Programmer is responsible for setting the carry flag to "complete" 2s compliment.
 
     // Execute
     alu::sub_with_carry(&AddressingModes::Immediate, &mut cpu);
 
     // Verify
     assert_eq!(cpu.accumulator.get_data(), 0x60);
-    assert!(cpu.processor_status_flags.check_flag('v').unwrap_or(false));
+    assert!(cpu.processor_status_flags.check_flag(StatusFlags::Overflow));
 }
 
 // Bitwise operations
@@ -122,7 +121,7 @@ fn arithmetic_shift_lift_test() {
     alu::left_shift(&AddressingModes::Accumulator, &mut cpu, false);
 
     // Verify
-    assert!(cpu.processor_status_flags.check_flag('c').unwrap_or(false));
+    assert!(cpu.processor_status_flags.check_flag(StatusFlags::Carry));
     assert_eq!(cpu.accumulator.get_data(), 2);
 }
 
@@ -131,14 +130,14 @@ fn rotate_left_test() {
     // Setup
     let mut cpu = alu_test_setup();
     cpu.accumulator.load_data(0x81);
-    cpu.processor_status_flags.set_flag('c').unwrap();
+    cpu.processor_status_flags.set_flag(StatusFlags::Carry);
 
     // Execute
     alu::left_shift(&AddressingModes::Accumulator, &mut cpu, true);
     alu::left_shift(&AddressingModes::Accumulator, &mut cpu, true);
 
     // Verify
-    assert!(!cpu.processor_status_flags.check_flag('c').unwrap_or(true));
+    assert!(!cpu.processor_status_flags.check_flag(StatusFlags::Carry));
     assert_eq!(cpu.accumulator.get_data(), 0x7);
 }
 
@@ -152,7 +151,7 @@ fn shift_right_test() {
     alu::right_shift(&AddressingModes::Accumulator, &mut cpu, false);
 
     // Verify
-    assert!(cpu.processor_status_flags.check_flag('c').unwrap_or(false));
+    assert!(cpu.processor_status_flags.check_flag(StatusFlags::Carry));
     assert_eq!(cpu.accumulator.get_data(), 1);
 }
 
@@ -167,6 +166,6 @@ fn rotate_right_test() {
     alu::right_shift(&AddressingModes::Accumulator, &mut cpu, true);
 
     // Verify
-    assert!(cpu.processor_status_flags.check_flag('c').unwrap_or(false));
+    assert!(cpu.processor_status_flags.check_flag(StatusFlags::Carry));
     assert_eq!(cpu.accumulator.get_data(), 0xa0)
 }

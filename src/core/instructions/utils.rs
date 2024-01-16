@@ -64,7 +64,7 @@ impl AddressingModes {
 mod tests {
     use std::vec;
 
-    use crate::core::register::ProcessorStatusRegister;
+    use crate::core::register::{ProcessorStatusRegister, StatusFlags};
 
     #[test]
     fn overflow_test_addition() {
@@ -79,7 +79,7 @@ mod tests {
         for i in 0..first_operands.len() {
             let sum: u8 = first_operands[i].wrapping_add(second_operands[i]);
             status_flags.update_overflow_flag(first_operands[i], second_operands[i], sum);
-            results.push(status_flags.check_flag('v').unwrap());
+            results.push(status_flags.check_flag(StatusFlags::Overflow));
         }
 
         // Verify
@@ -101,7 +101,7 @@ mod tests {
         for i in 0..first_operands.len() {
             let sum = first_operands[i].wrapping_add(second_operands[i]);
             status_flags.update_overflow_flag(first_operands[i], second_operands[i], sum);
-            results.push(status_flags.check_flag('v').unwrap());
+            results.push(status_flags.check_flag(StatusFlags::Overflow));
         }
         // return;
 
@@ -119,11 +119,11 @@ mod tests {
 
         status_flags.add_update_carry_flag(first, second);
 
-        assert_eq!(status_flags.check_flag('c').unwrap(), true);
+        assert_eq!(status_flags.check_flag(StatusFlags::Carry), true);
 
         first = 0x80;
         second = 0x5;
         status_flags.add_update_carry_flag(first, second);
-        assert_eq!(status_flags.check_flag('c').unwrap(), false);
+        assert_eq!(status_flags.check_flag(StatusFlags::Carry), false);
     }
 }

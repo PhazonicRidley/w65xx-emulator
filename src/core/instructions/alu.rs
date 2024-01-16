@@ -1,12 +1,12 @@
 use super::utils::AddressingModes;
 use crate::core::{
     cpu::CPU,
-    register::{ProcessorStatusRegister, Register},
+    register::{ProcessorStatusRegister, Register, StatusFlags},
 };
 
 // Arithmetic functionality
 fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, second: u8) -> u8 {
-    let carry_flag = status_flags.check_flag('c').unwrap_or(false) as u8;
+    let carry_flag = status_flags.check_flag(StatusFlags::Carry) as u8;
     let second_operand = second + carry_flag;
     let sum = first.wrapping_add(second_operand);
     status_flags.add_update_carry_flag(first, second_operand);
@@ -75,14 +75,14 @@ pub fn left_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool
         Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr],
         None => cpu.accumulator.get_data(),
     };
-    let old_carry = cpu.processor_status_flags.check_flag('c').unwrap() as u8;
+    let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
     let new_carry = data & 0x80; // shift the MSB down to be a 1 if its set at all to be set in the carry.
     data <<= 1;
 
     if new_carry != 0 {
-        cpu.processor_status_flags.set_flag('c').unwrap();
+        cpu.processor_status_flags.set_flag(StatusFlags::Carry);
     } else {
-        cpu.processor_status_flags.clear_flag('c').unwrap();
+        cpu.processor_status_flags.clear_flag(StatusFlags::Carry);
     }
 
     if rotate {
@@ -99,7 +99,7 @@ pub fn left_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool
 
 // LSR, ROR
 pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool) {
-    let old_carry = cpu.processor_status_flags.check_flag('c').unwrap() as u8;
+    let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
     let address_option = cpu.fetch_address(addressing_mode);
     let mut data = match address_option {
         Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr],
@@ -108,9 +108,9 @@ pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: boo
     let new_carry = data & 1;
     data >>= 1;
     if new_carry != 0 {
-        cpu.processor_status_flags.set_flag('c').unwrap();
+        cpu.processor_status_flags.set_flag(StatusFlags::Carry);
     } else {
-        cpu.processor_status_flags.clear_flag('c').unwrap();
+        cpu.processor_status_flags.clear_flag(StatusFlags::Carry);
     }
 
     if rotate {

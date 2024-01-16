@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use strum::IntoEnumIterator;
 use w65xx_emulator::core::register::*;
 use w65xx_emulator::peripherals::memory::VirtualMemory;
 
@@ -124,16 +125,15 @@ fn stack_pull_test() {
 fn status_flag_set_test() {
     // Set up
     let mut flag_register = ProcessorStatusRegister::new();
-    let flags = ['c', 'z', 'i', 'd', 'b', 'v', 'n'];
 
     // Execute
-    for flag in flags {
-        flag_register.set_flag(flag).unwrap();
+    for flag in StatusFlags::iter() {
+        flag_register.set_flag(flag);
     }
 
     // Verify
-    for flag in flags {
-        assert_eq!(flag_register.check_flag(flag).unwrap(), true);
+    for flag in StatusFlags::iter() {
+        assert_eq!(flag_register.check_flag(flag), true);
     }
 }
 
@@ -142,18 +142,16 @@ fn status_flag_check() {
     // Set up
     let mut flag_register = ProcessorStatusRegister::new();
     let expected_flags: u8 = 0b01100011;
-    let flags = ['c', 'z', 'i', 'd', 'b', '1', 'v', 'n'];
-    let set_flags = ['z', 'c', 'v'];
+    let set_flags = [StatusFlags::Zero, StatusFlags::Carry, StatusFlags::Overflow];
 
     // Execute
     for flag in set_flags {
-        flag_register.set_flag(flag).unwrap();
+        flag_register.set_flag(flag);
     }
 
     // Verify
-    for position in 0..7 {
+    for (position, flag) in StatusFlags::iter().enumerate() {
         let expected_flag = (expected_flags & (1 << position)) != 0;
-        let flag = flags[position];
-        assert_eq!(flag_register.check_flag(flag).unwrap(), expected_flag);
+        assert_eq!(flag_register.check_flag(flag), expected_flag);
     }
 }

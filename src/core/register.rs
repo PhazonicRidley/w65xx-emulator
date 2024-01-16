@@ -6,6 +6,7 @@ use std::{
 
 use crate::peripherals::memory::VirtualMemory;
 use num_traits::Unsigned;
+use strum::EnumIter;
 
 pub trait Register<T: Unsigned> {
     fn load_data(&mut self, data: T);
@@ -182,52 +183,71 @@ impl Register<u8> for StackPointerRegister {
 #[derive(Debug)]
 pub struct ProcessorStatusRegister {
     flags: u8,
-    labels: [char; 8],
+}
+
+#[derive(EnumIter)]
+pub enum StatusFlags {
+    Carry,
+    Zero,
+    InterruptDisable,
+    Decimal,
+    BRK,
+    Overflow,
+    Negative,
+}
+
+impl StatusFlags {
+    fn get_mask(&self) -> u8 {
+        return match self {
+            Self::Carry => 1,
+            Self::Zero => 1 << 1,
+            Self::InterruptDisable => 1 << 2,
+            Self::Decimal => 1 << 3,
+            Self::BRK => 1 << 4,
+            Self::Overflow => 1 << 6,
+            Self::Negative => 1 << 7,
+        };
+    }
 }
 
 impl ProcessorStatusRegister {
     pub fn new() -> Self {
-        return ProcessorStatusRegister {
-            flags: 0b00100000,
-            labels: ['c', 'z', 'i', 'd', 'b', '1', 'v', 'n'],
-        };
+        return ProcessorStatusRegister { flags: 0b00100000 };
     }
 
-    // Manages bits to set and clear them, called from wrapper functions
-    fn verify_flag(&self, flag: char) -> Result<usize, RegisterError> {
-        return match self.labels.iter().position(|&f| f == flag) {
-            Some(bit) => Ok(bit),
-            None => Err(RegisterError {
-                err_msg: format!("Invalid flag: {} given", flag),
-            }),
-        };
-    }
-    fn bit_manager(&mut self, flag: char, to_set: bool) -> Result<(), RegisterError> {
-        let bit_position = self.verify_flag(flag)?;
-        let mask: u8 = 1 << bit_position;
+    /**
+     * Manages bits to set and clear them, called from wrapper functions
+     */
+    // fn verify_flag(&self, flag: char) -> Result<usize, RegisterError> {
+    //     return match self.labels.iter().position(|&f| f == flag) {
+    //         Some(bit) => Ok(bit),
+    //         None => Err(RegisterError {
+    //             err_msg: format!("Invalid flag: {} given", flag),
+    //         }),
+    //     };
+    // }
+    fn bit_manager(&mut self, flag: StatusFlags, to_set: bool) {
+        let mask: u8 = flag.get_mask();
         if to_set {
             self.flags |= mask;
         } else {
             let inverse_mask = !mask;
             self.flags &= inverse_mask;
         }
-
-        return Ok(());
     }
 
-    pub fn set_flag(&mut self, flag: char) -> Result<(), RegisterError> {
+    pub fn set_flag(&mut self, flag: StatusFlags) {
         return self.bit_manager(flag, true);
     }
 
-    pub fn clear_flag(&mut self, flag: char) -> Result<(), RegisterError> {
+    pub fn clear_flag(&mut self, flag: StatusFlags) {
         return self.bit_manager(flag, false);
     }
 
-    pub fn check_flag(&self, flag: char) -> Result<bool, RegisterError> {
-        let bit_position = self.verify_flag(flag)?;
-        let mask: u8 = 1 << bit_position;
+    pub fn check_flag(&self, flag: StatusFlags) -> bool {
+        let mask: u8 = flag.get_mask();
         let bit_state = mask & self.flags;
-        return Ok(bit_state != 0);
+        return bit_state != 0;
     }
 
     pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {
@@ -240,9 +260,9 @@ impl ProcessorStatusRegister {
         let carry_flag = 0x100 & true_sum;
 
         if carry_flag != 0 {
-            self.set_flag('c').unwrap();
+            self.set_flag(StatusFlags::Carry);
         } else {
-            self.clear_flag('c').unwrap();
+            self.clear_flag(StatusFlags::Carry);
         }
     }
 
@@ -252,23 +272,23 @@ impl ProcessorStatusRegister {
         // let second_test = &0x80;
 
         if first_test != 0 {
-            self.set_flag('v').unwrap();
+            self.set_flag(StatusFlags::Overflow)
         } else {
-            self.clear_flag('v').unwrap();
+            self.clear_flag(StatusFlags::Overflow)
         }
     }
 
     pub fn update_nz_flags(&mut self, data: u8) {
         let signed_data = data as i8;
         if signed_data < 0 {
-            self.set_flag('n').unwrap();
-            self.clear_flag('z').unwrap();
+            self.set_flag(StatusFlags::Negative);
+            self.clear_flag(StatusFlags::Zero);
         } else if signed_data == 0 {
-            self.set_flag('z').unwrap();
-            self.clear_flag('n').unwrap();
+            self.set_flag(StatusFlags::Zero);
+            self.clear_flag(StatusFlags::Negative);
         } else {
-            self.clear_flag('n').unwrap();
-            self.clear_flag('z').unwrap();
+            self.clear_flag(StatusFlags::Negative);
+            self.clear_flag(StatusFlags::Zero);
         }
     }
 }

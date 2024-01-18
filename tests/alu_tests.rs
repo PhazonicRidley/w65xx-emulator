@@ -2,7 +2,10 @@ use std::sync::{Arc, Mutex};
 
 use w65xx_emulator::core::instructions::utils::AddressingModes;
 use w65xx_emulator::core::register::{Register, StatusFlags};
-use w65xx_emulator::core::{cpu::CPU, instructions::alu};
+use w65xx_emulator::core::{
+    cpu::CPU,
+    instructions::{alu, control_flow},
+};
 use w65xx_emulator::peripherals::memory::VirtualMemory;
 
 fn alu_test_setup() -> CPU {
@@ -200,4 +203,21 @@ fn bit_test() {
     assert!(!status_register.check_flag(StatusFlags::Zero));
     assert!(status_register.check_flag(StatusFlags::Negative));
     assert!(status_register.check_flag(StatusFlags::Overflow));
+}
+
+#[test]
+fn compare_test() {
+    // Setup
+    let mut cpu = alu_test_setup();
+    cpu.accumulator.load_data(1);
+    let accumulator = &cpu.accumulator;
+
+    // Execute
+    control_flow::compare(&AddressingModes::Immediate, accumulator, &mut cpu);
+
+    // Verify
+    assert_eq!(
+        cpu.processor_status_flags.check_flag(StatusFlags::Zero),
+        true
+    );
 }

@@ -18,7 +18,7 @@ fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, second
 // ADC
 pub fn add_with_carry(addressing_mode: &AddressingModes, cpu: &mut CPU) {
     let address = cpu.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
-    let memory_data = cpu.memory_arc.try_lock().unwrap()[address];
+    let memory_data = cpu.memory_arc.lock().unwrap()[address];
     let acc_data = cpu.accumulator.get_data();
     let sum = add_two_numbers(&mut cpu.processor_status_flags, acc_data, memory_data);
     cpu.accumulator.load_data(sum);
@@ -29,7 +29,7 @@ pub fn add_with_carry(addressing_mode: &AddressingModes, cpu: &mut CPU) {
 // SBC
 pub fn sub_with_carry(addressing_mode: &AddressingModes, cpu: &mut CPU) {
     let address = cpu.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
-    let memory_data = !(cpu.memory_arc.try_lock().unwrap()[address]); // one's compliment of second operand
+    let memory_data = !(cpu.memory_arc.lock().unwrap()[address]); // one's compliment of second operand
     let acc_data = cpu.accumulator.get_data();
     let sum = add_two_numbers(&mut cpu.processor_status_flags, acc_data, memory_data);
     cpu.accumulator.load_data(sum);
@@ -44,7 +44,7 @@ fn bitwise_operations(
     operation: impl Fn(u8, u8) -> u8,
 ) {
     let address = cpu.fetch_address(&addressing_mode).unwrap();
-    let memory_data = cpu.memory_arc.try_lock().unwrap()[address];
+    let memory_data = cpu.memory_arc.lock().unwrap()[address];
     let acc_data = cpu.accumulator.get_data();
     let op_result = operation(acc_data, memory_data);
     cpu.accumulator.load_data(op_result);
@@ -72,7 +72,7 @@ pub fn bitwise_exclusive_or(addressing_mode: &AddressingModes, cpu: &mut CPU) {
 pub fn left_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool) {
     let address_option = cpu.fetch_address(addressing_mode); // None means the addressing mode is the accumulator
     let mut data = match address_option {
-        Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr],
+        Some(addr) => cpu.memory_arc.lock().unwrap()[addr],
         None => cpu.accumulator.get_data(),
     };
     let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
@@ -89,7 +89,7 @@ pub fn left_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool
         data |= old_carry;
     }
     match address_option {
-        Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr] = data,
+        Some(addr) => cpu.memory_arc.lock().unwrap()[addr] = data,
         None => cpu.accumulator.load_data(data),
     };
     cpu.processor_status_flags.update_nz_flags(data);
@@ -102,7 +102,7 @@ pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: boo
     let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
     let address_option = cpu.fetch_address(addressing_mode);
     let mut data = match address_option {
-        Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr],
+        Some(addr) => cpu.memory_arc.lock().unwrap()[addr],
         None => cpu.accumulator.get_data(),
     };
     let new_carry = data & 1;
@@ -118,7 +118,7 @@ pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: boo
     }
 
     match address_option {
-        Some(addr) => cpu.memory_arc.try_lock().unwrap()[addr] = data,
+        Some(addr) => cpu.memory_arc.lock().unwrap()[addr] = data,
         None => cpu.accumulator.load_data(data),
     };
 

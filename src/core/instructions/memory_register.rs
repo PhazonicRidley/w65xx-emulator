@@ -11,7 +11,7 @@ pub fn load_instruction(
     let pc = &mut cpu.program_counter;
     let data;
     {
-        let memory = cpu.memory_arc.try_lock().unwrap();
+        let memory = cpu.memory_arc.lock().unwrap();
         data = memory[address];
     }
     register.load_data(data);
@@ -29,7 +29,7 @@ pub fn store_instruction(
     let address = cpu.fetch_address(&addressing_mode).unwrap();
     let pc = &mut cpu.program_counter;
     {
-        let mut memory = cpu.memory_arc.try_lock().unwrap();
+        let mut memory = cpu.memory_arc.lock().unwrap();
         memory[address] = register.get_data();
     }
 

@@ -153,12 +153,12 @@ impl StackPointerRegister {
     }
 
     pub fn push(&mut self, data: u8) {
-        self.memory_arc.try_lock().unwrap()[self.pointer as u16] = data;
+        self.memory_arc.lock().unwrap()[self.pointer as u16] = data;
         self.pointer = self.pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
     }
     pub fn pop(&mut self) -> u8 {
         self.pointer = self.pointer.wrapping_add(1); // increment stack pointer, allows for overflows
-        let byte = self.memory_arc.try_lock().unwrap()[self.pointer as u16];
+        let byte = self.memory_arc.lock().unwrap()[self.pointer as u16];
         return byte;
     }
 }

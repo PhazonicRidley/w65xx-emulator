@@ -40,14 +40,14 @@ impl CPU {
         self.program_counter.reset_register();
         let program_start_location: u16;
         {
-            let memory = self.memory_arc.try_lock().unwrap();
+            let memory = self.memory_arc.lock().unwrap();
             program_start_location = memory.read_word(0xFFFC);
         }
         self.program_counter.load_data(program_start_location);
     }
 
     pub fn fetch_address(&self, addressing_mode: &AddressingModes) -> Option<u16> {
-        let memory = self.memory_arc.try_lock().unwrap();
+        let memory = self.memory_arc.lock().unwrap();
         let pc = &self.program_counter;
         let x = &self.x_register;
         let y = &self.y_register;

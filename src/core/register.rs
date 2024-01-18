@@ -252,6 +252,10 @@ impl ProcessorStatusRegister {
         self.flags &= !mask | 32;
     }
 
+    pub fn get_flags(&self) -> u8 {
+        return self.flags;
+    }
+
     pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {
         // Tests by summing numbers together and detecting if it overflows or underflows
         // The inverse of the carry flag is the borrow flag. ~C = B

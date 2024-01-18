@@ -5,7 +5,7 @@ use crate::core::{
 };
 
 // Arithmetic functionality
-fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, second: u8) -> u8 {
+pub fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, second: u8) -> u8 {
     let carry_flag = status_flags.check_flag(StatusFlags::Carry) as u8;
     let second_operand = second + carry_flag;
     let sum = first.wrapping_add(second_operand);

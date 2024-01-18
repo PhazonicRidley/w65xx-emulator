@@ -169,3 +169,35 @@ fn rotate_right_test() {
     assert!(cpu.processor_status_flags.check_flag(StatusFlags::Carry));
     assert_eq!(cpu.accumulator.get_data(), 0xa0)
 }
+
+#[test]
+fn increment_test() {
+    // Setup
+    let mut cpu = alu_test_setup();
+    cpu.x_register.load_data(1);
+
+    // Execute
+    alu::increment_memory(&AddressingModes::ZeroPage, &mut cpu);
+    alu::increment_register(&mut cpu.x_register);
+
+    // Verify
+    let memory = cpu.memory_arc.lock().unwrap();
+    assert_eq!(cpu.x_register.get_data(), 2);
+    assert_eq!(memory[0x0001], 0xeb);
+}
+
+#[test]
+fn bit_test() {
+    // Setup
+    let mut cpu = alu_test_setup();
+    cpu.accumulator.load_data(0xff);
+
+    // Execute
+    alu::bit_instruction(&AddressingModes::ZeroPage, &mut cpu);
+
+    // Verify
+    let status_register = &cpu.processor_status_flags;
+    assert!(!status_register.check_flag(StatusFlags::Zero));
+    assert!(status_register.check_flag(StatusFlags::Negative));
+    assert!(status_register.check_flag(StatusFlags::Overflow));
+}

@@ -126,3 +126,56 @@ pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: boo
     cpu.program_counter
         .increment(addressing_mode.parameter_bytes());
 }
+
+// INC
+pub fn increment_memory(addressing_mode: &AddressingModes, cpu: &mut CPU) {
+    let address = cpu.fetch_address(addressing_mode);
+
+    if let Some(addr) = address {
+        cpu.memory_arc.lock().unwrap()[addr] += 1
+    };
+}
+
+// INX, INY
+pub fn increment_register(register: &mut impl Register<u8>) {
+    register.load_data(register.get_data() + 1);
+}
+
+// BIT
+pub fn bit_instruction(addressing_mode: &AddressingModes, cpu: &mut CPU) {
+    let address = cpu.fetch_address(addressing_mode).unwrap();
+    let mem_operand = cpu.memory_arc.lock().unwrap()[address];
+    let result = mem_operand & cpu.accumulator.get_data();
+
+    let status_register = &mut cpu.processor_status_flags;
+    // Set Flags
+    if result == 0 {
+        status_register.set_flag(StatusFlags::Zero);
+    }
+
+    if (result & 1 << 7) != 0 {
+        status_register.set_flag(StatusFlags::Negative);
+    } else {
+        status_register.clear_flag(StatusFlags::Negative);
+    }
+
+    if (result & 1 << 6) != 0 {
+        status_register.set_flag(StatusFlags::Overflow);
+    } else {
+        status_register.clear_flag(StatusFlags::Overflow);
+    }
+}
+
+// DEC
+pub fn decrement_memory(addressing_mode: &AddressingModes, cpu: &mut CPU) {
+    let address = cpu.fetch_address(addressing_mode);
+
+    if let Some(addr) = address {
+        cpu.memory_arc.lock().unwrap()[addr] -= 1
+    };
+}
+
+// DEX, DEY
+pub fn decrement_register(register: &mut impl Register<u8>) {
+    register.load_data(register.get_data() - 1);
+}

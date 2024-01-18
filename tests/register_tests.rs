@@ -150,8 +150,38 @@ fn status_flag_check() {
     }
 
     // Verify
-    for (position, flag) in StatusFlags::iter().enumerate() {
+    for (mut position, flag) in StatusFlags::iter().enumerate() {
+        if position >= 5 {
+            position += 1;
+        }
         let expected_flag = (expected_flags & (1 << position)) != 0;
         assert_eq!(flag_register.check_flag(flag), expected_flag);
     }
+}
+
+#[test]
+fn set_flag_mask_test() {
+    // Set up
+    let mut flag_register = ProcessorStatusRegister::new();
+    let mask: u8 = 0b01100011;
+
+    // Execute
+    flag_register.set_mask(mask);
+
+    // Verify
+    assert!(flag_register.check_mask(mask));
+}
+
+#[test]
+fn clear_flag_mask_test() {
+    // Set up
+    let mut flag_register = ProcessorStatusRegister::new();
+    let mask: u8 = 0b01100011;
+    let expected_flag_state = 0b00100000;
+
+    // Execute
+    flag_register.clear_mask(mask);
+
+    // Verify
+    assert!(flag_register.check_mask(expected_flag_state));
 }

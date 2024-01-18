@@ -185,7 +185,7 @@ pub struct ProcessorStatusRegister {
     flags: u8,
 }
 
-#[derive(EnumIter)]
+#[derive(Debug, EnumIter, Clone)]
 pub enum StatusFlags {
     Carry,
     Zero,
@@ -215,17 +215,6 @@ impl ProcessorStatusRegister {
         return ProcessorStatusRegister { flags: 0b00100000 };
     }
 
-    /**
-     * Manages bits to set and clear them, called from wrapper functions
-     */
-    // fn verify_flag(&self, flag: char) -> Result<usize, RegisterError> {
-    //     return match self.labels.iter().position(|&f| f == flag) {
-    //         Some(bit) => Ok(bit),
-    //         None => Err(RegisterError {
-    //             err_msg: format!("Invalid flag: {} given", flag),
-    //         }),
-    //     };
-    // }
     fn bit_manager(&mut self, flag: StatusFlags, to_set: bool) {
         let mask: u8 = flag.get_mask();
         if to_set {
@@ -248,6 +237,19 @@ impl ProcessorStatusRegister {
         let mask: u8 = flag.get_mask();
         let bit_state = mask & self.flags;
         return bit_state != 0;
+    }
+
+    pub fn check_mask(&self, mask: u8) -> bool {
+        return self.flags & mask == mask;
+    }
+
+    pub fn set_mask(&mut self, mask: u8) {
+        self.flags &= 0;
+        self.flags |= mask | 32;
+    }
+
+    pub fn clear_mask(&mut self, mask: u8) {
+        self.flags &= !mask | 32;
     }
 
     pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {

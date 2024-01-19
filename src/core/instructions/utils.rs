@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::core::register::{ProcessorStatusRegister, StatusFlags};
+
 pub enum AddressingModes {
     // Param == Operand, considering all words with little endian as thats how they will appear in machine code.
     Accumulator,       // OPC A
@@ -55,6 +57,32 @@ impl AddressingModes {
             Self::ZeroPage => 1,
             Self::ZeroPageXIndex => 1,
             Self::ZeroPageYIndex => 1,
+        }
+    }
+}
+
+pub enum BranchMode {
+    BMI,
+    BNE,
+    BPL,
+    BVC,
+    BVS,
+    BCS,
+    BCC,
+    BEQ,
+}
+
+impl BranchMode {
+    pub fn verify(&self, flag_reg: &ProcessorStatusRegister) -> bool {
+        match self {
+            Self::BEQ => flag_reg.check_flag(StatusFlags::Zero), // Z = 1
+            Self::BCC => !flag_reg.check_flag(StatusFlags::Carry), // C = 0
+            Self::BCS => flag_reg.check_flag(StatusFlags::Carry), // C = 1
+            Self::BVC => !flag_reg.check_flag(StatusFlags::Overflow), // V = 0
+            Self::BVS => flag_reg.check_flag(StatusFlags::Overflow), // V = 1
+            Self::BPL => !flag_reg.check_flag(StatusFlags::Negative), // N = 0
+            Self::BNE => !flag_reg.check_flag(StatusFlags::Zero), // Z = 0
+            Self::BMI => flag_reg.check_flag(StatusFlags::Negative), // N = 1
         }
     }
 }

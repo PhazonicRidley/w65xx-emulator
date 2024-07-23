@@ -1,11 +1,13 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::utils::AddressingModes;
 use crate::core::{
     cpu::CPU,
-    register::{ProcessorStatusRegister, Register, StatusFlags},
+    register::{DataRegister, StatusFlags, StatusRegister},
 };
 
 // Arithmetic functionality
-pub fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, second: u8) -> u8 {
+pub fn add_two_numbers(status_flags: &mut StatusRegister, first: u8, second: u8) -> u8 {
     let carry_flag = status_flags.check_flag(StatusFlags::Carry) as u8;
     let second_operand = second + carry_flag;
     let sum = first.wrapping_add(second_operand);
@@ -15,167 +17,165 @@ pub fn add_two_numbers(status_flags: &mut ProcessorStatusRegister, first: u8, se
 
     return sum;
 }
-// ADC
-pub fn add_with_carry(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    let address = cpu.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
-    let memory_data = cpu.memory_arc.lock().unwrap()[address];
-    let acc_data = cpu.accumulator.get_data();
-    let sum = add_two_numbers(&mut cpu.processor_status_flags, acc_data, memory_data);
-    cpu.accumulator.load_data(sum);
-    cpu.program_counter
-        .increment(addressing_mode.parameter_bytes());
-}
-
-// SBC
-pub fn sub_with_carry(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    let address = cpu.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
-    let memory_data = !(cpu.memory_arc.lock().unwrap()[address]); // one's compliment of second operand
-    let acc_data = cpu.accumulator.get_data();
-    let sum = add_two_numbers(&mut cpu.processor_status_flags, acc_data, memory_data);
-    cpu.accumulator.load_data(sum);
-    cpu.program_counter
-        .increment(addressing_mode.parameter_bytes());
-}
-
-// Bitwise logic functionality
-fn bitwise_operations(
-    addressing_mode: &AddressingModes,
-    cpu: &mut CPU,
-    operation: impl Fn(u8, u8) -> u8,
-) {
-    let address = cpu.fetch_address(&addressing_mode).unwrap();
-    let memory_data = cpu.memory_arc.lock().unwrap()[address];
-    let acc_data = cpu.accumulator.get_data();
-    let op_result = operation(acc_data, memory_data);
-    cpu.accumulator.load_data(op_result);
-    cpu.processor_status_flags.update_nz_flags(op_result);
-    cpu.program_counter
-        .increment(addressing_mode.parameter_bytes());
-}
-
-// AND
-pub fn bitwise_and(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    bitwise_operations(addressing_mode, cpu, |x, y| x & y);
-}
-
-// ORA
-pub fn bitwise_or(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    bitwise_operations(addressing_mode, cpu, |x, y| x | y);
-}
-
-// EOR
-pub fn bitwise_exclusive_or(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    bitwise_operations(addressing_mode, cpu, |x, y| x ^ y);
-}
-
-// ASL, ROL
-pub fn left_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool) {
-    let address_option = cpu.fetch_address(addressing_mode); // None means the addressing mode is the accumulator
-    let mut data = match address_option {
-        Some(addr) => cpu.memory_arc.lock().unwrap()[addr],
-        None => cpu.accumulator.get_data(),
-    };
-    let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
-    let new_carry = data & 0x80; // shift the MSB down to be a 1 if its set at all to be set in the carry.
-    data <<= 1;
-
-    if new_carry != 0 {
-        cpu.processor_status_flags.set_flag(StatusFlags::Carry);
-    } else {
-        cpu.processor_status_flags.clear_flag(StatusFlags::Carry);
+// ADC, SBC
+impl CPU {
+    pub fn sum_with_carry(&mut self, addressing_mode: &AddressingModes, subtract: bool) {
+        let address = self.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
+        let mut memory_data = self.memory_rc.borrow_mut()[address];
+        if subtract {
+            memory_data = !memory_data;
+        }
+        let acc_data = self.accumulator_cell.borrow().m_value;
+        let sum = add_two_numbers(&mut self.processor_status_flags, acc_data, memory_data);
+        self.accumulator_cell.borrow_mut().m_value = sum;
+        self.program_counter
+            .increment(addressing_mode.parameter_bytes());
     }
 
-    if rotate {
-        data |= old_carry;
-    }
-    match address_option {
-        Some(addr) => cpu.memory_arc.lock().unwrap()[addr] = data,
-        None => cpu.accumulator.load_data(data),
-    };
-    cpu.processor_status_flags.update_nz_flags(data);
-    cpu.program_counter
-        .increment(addressing_mode.parameter_bytes());
-}
+    // Bitwise logic functionality
+    fn bitwise_operations(
+        &mut self,
+        addressing_mode: &AddressingModes,
+        operation: impl Fn(u8, u8) -> u8,
+    ) {
+        let address = self.fetch_address(&addressing_mode).unwrap();
+        let memory_data = self.memory_rc.borrow()[address];
+        let op_result: u8;
+        {
+            let mut accumulator = self.accumulator_cell.borrow_mut();
+            let acc_data = accumulator.m_value;
+            op_result = operation(acc_data, memory_data);
+            accumulator.m_value = op_result;
+        }
 
-// LSR, ROR
-pub fn right_shift(addressing_mode: &AddressingModes, cpu: &mut CPU, rotate: bool) {
-    let old_carry = cpu.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
-    let address_option = cpu.fetch_address(addressing_mode);
-    let mut data = match address_option {
-        Some(addr) => cpu.memory_arc.lock().unwrap()[addr],
-        None => cpu.accumulator.get_data(),
-    };
-    let new_carry = data & 1;
-    data >>= 1;
-    if new_carry != 0 {
-        cpu.processor_status_flags.set_flag(StatusFlags::Carry);
-    } else {
-        cpu.processor_status_flags.clear_flag(StatusFlags::Carry);
+        self.processor_status_flags.update_nz_flags(op_result);
+        self.program_counter
+            .increment(addressing_mode.parameter_bytes());
     }
 
-    if rotate {
-        data |= old_carry << 7;
+    // AND
+    pub fn bitwise_and(&mut self, addressing_mode: &AddressingModes) {
+        self.bitwise_operations(addressing_mode, |x, y| x & y);
     }
 
-    match address_option {
-        Some(addr) => cpu.memory_arc.lock().unwrap()[addr] = data,
-        None => cpu.accumulator.load_data(data),
-    };
-
-    cpu.processor_status_flags.update_nz_flags(data);
-    cpu.program_counter
-        .increment(addressing_mode.parameter_bytes());
-}
-
-// INC
-pub fn increment_memory(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    let address = cpu.fetch_address(addressing_mode);
-
-    if let Some(addr) = address {
-        cpu.memory_arc.lock().unwrap()[addr] += 1
-    };
-}
-
-// INX, INY
-pub fn increment_register(register: &mut impl Register<u8>) {
-    register.load_data(register.get_data() + 1);
-}
-
-// BIT
-pub fn bit_instruction(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    let address = cpu.fetch_address(addressing_mode).unwrap();
-    let mem_operand = cpu.memory_arc.lock().unwrap()[address];
-    let result = mem_operand & cpu.accumulator.get_data();
-
-    let status_register = &mut cpu.processor_status_flags;
-    // Set Flags
-    if result == 0 {
-        status_register.set_flag(StatusFlags::Zero);
+    // ORA
+    pub fn bitwise_or(&mut self, addressing_mode: &AddressingModes) {
+        self.bitwise_operations(addressing_mode, |x, y| x | y);
     }
 
-    if (result & 1 << 7) != 0 {
-        status_register.set_flag(StatusFlags::Negative);
-    } else {
-        status_register.clear_flag(StatusFlags::Negative);
+    // EOR
+    pub fn bitwise_exclusive_or(&mut self, addressing_mode: &AddressingModes) {
+        self.bitwise_operations(addressing_mode, |x, y| x ^ y);
     }
 
-    if (result & 1 << 6) != 0 {
-        status_register.set_flag(StatusFlags::Overflow);
-    } else {
-        status_register.clear_flag(StatusFlags::Overflow);
+    // ASL, ROL
+    pub fn left_shift(&mut self, addressing_mode: &AddressingModes, rotate: bool) {
+        let address_option = self.fetch_address(addressing_mode); // None means the addressing mode is the accumulator
+        let mut data = match address_option {
+            Some(addr) => self.memory_rc.borrow()[addr],
+            None => self.accumulator_cell.borrow().m_value,
+        };
+        let old_carry = self.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
+        let new_carry = data & 0x80; // shift the MSB down to be a 1 if its set at all to be set in the carry.
+        data <<= 1;
+
+        if new_carry != 0 {
+            self.processor_status_flags.set_flag(StatusFlags::Carry);
+        } else {
+            self.processor_status_flags.clear_flag(StatusFlags::Carry);
+        }
+
+        if rotate {
+            data |= old_carry;
+        }
+        match address_option {
+            Some(addr) => self.memory_rc.borrow_mut()[addr] = data,
+            None => self.accumulator_cell.borrow_mut().m_value = data,
+        };
+        self.processor_status_flags.update_nz_flags(data);
+        self.program_counter
+            .increment(addressing_mode.parameter_bytes());
     }
-}
 
-// DEC
-pub fn decrement_memory(addressing_mode: &AddressingModes, cpu: &mut CPU) {
-    let address = cpu.fetch_address(addressing_mode);
+    // LSR, ROR
+    pub fn right_shift(&mut self, addressing_mode: &AddressingModes, rotate: bool) {
+        let old_carry = self.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
+        let address_option = self.fetch_address(addressing_mode);
+        let mut data = match address_option {
+            Some(addr) => self.memory_rc.borrow()[addr],
+            None => self.accumulator_cell.borrow().m_value,
+        };
+        let new_carry = data & 1;
+        data >>= 1;
+        if new_carry != 0 {
+            self.processor_status_flags.set_flag(StatusFlags::Carry);
+        } else {
+            self.processor_status_flags.clear_flag(StatusFlags::Carry);
+        }
 
-    if let Some(addr) = address {
-        cpu.memory_arc.lock().unwrap()[addr] -= 1
-    };
-}
+        if rotate {
+            data |= old_carry << 7;
+        }
 
-// DEX, DEY
-pub fn decrement_register(register: &mut impl Register<u8>) {
-    register.load_data(register.get_data() - 1);
+        match address_option {
+            Some(addr) => self.memory_rc.borrow_mut()[addr] = data,
+            None => self.accumulator_cell.borrow_mut().m_value = data,
+        };
+
+        self.processor_status_flags.update_nz_flags(data);
+        self.program_counter
+            .increment(addressing_mode.parameter_bytes());
+    }
+
+    // BIT
+    pub fn bit_instruction(&mut self, addressing_mode: &AddressingModes) {
+        let address = self.fetch_address(addressing_mode).unwrap();
+        let mem_operand = self.memory_rc.borrow()[address];
+        let result = mem_operand & self.accumulator_cell.borrow().m_value;
+
+        // Set Flags
+        if result == 0 {
+            self.processor_status_flags.set_flag(StatusFlags::Zero);
+        }
+
+        if (result & 1 << 7) != 0 {
+            self.processor_status_flags.set_flag(StatusFlags::Negative);
+        } else {
+            self.processor_status_flags
+                .clear_flag(StatusFlags::Negative);
+        }
+
+        if (result & 1 << 6) != 0 {
+            self.processor_status_flags.set_flag(StatusFlags::Overflow);
+        } else {
+            self.processor_status_flags
+                .clear_flag(StatusFlags::Overflow);
+        }
+    }
+
+    pub fn inc_dec_memory(&mut self, addressing_mode: &AddressingModes, dec: bool) {
+        let address = self.fetch_address(addressing_mode).unwrap();
+        let mut memory = self.memory_rc.borrow_mut();
+        let value = memory[address];
+        memory[address] = if dec {
+            value.wrapping_sub(1)
+        } else {
+            value.wrapping_add(1)
+        };
+
+        self.program_counter
+            .increment(addressing_mode.parameter_bytes());
+    }
+
+    pub fn inc_dec_register(&mut self, register_cell: Rc<RefCell<DataRegister>>, dec: bool) {
+        let mut register = register_cell.borrow_mut();
+        let value = register.m_value;
+        register.m_value = if dec {
+            value.wrapping_sub(1)
+        } else {
+            value.wrapping_add(1)
+        };
+
+        self.program_counter.increment(0);
+    }
 }

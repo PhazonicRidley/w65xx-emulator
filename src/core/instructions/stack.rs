@@ -1,25 +1,31 @@
-use crate::core::{cpu::CPU, register::Register};
+use crate::core::cpu::CPU;
 
-// PHA
-pub fn push_accumulator(cpu: &mut CPU) {
-    let acc_value = cpu.accumulator.get_data();
-    cpu.stack_pointer.push(acc_value);
-}
+impl CPU {
+    // PHA
+    pub fn push_accumulator(&mut self) {
+        let acc_value = self.accumulator_cell.borrow().m_value;
+        self.stack_pointer.push(acc_value);
+        self.program_counter.increment(0);
+    }
 
-// PHP
-pub fn push_status(cpu: &mut CPU) {
-    let flags = cpu.processor_status_flags.get_flags();
-    cpu.stack_pointer.push(flags);
-}
+    // PHP
+    pub fn push_status(&mut self) {
+        let flags = self.processor_status_flags.get_flags();
+        self.stack_pointer.push(flags);
+        self.program_counter.increment(0);
+    }
 
-// PLA
-pub fn pop_accumulator(cpu: &mut CPU) {
-    let acc_value = cpu.stack_pointer.pop();
-    cpu.accumulator.load_data(acc_value);
-}
+    // PLA
+    pub fn pop_accumulator(&mut self) {
+        let acc_value = self.stack_pointer.pop();
+        self.accumulator_cell.borrow_mut().m_value = acc_value;
+        self.program_counter.increment(0);
+    }
 
-// PLP
-pub fn pop_status(cpu: &mut CPU) {
-    let flags = cpu.stack_pointer.pop();
-    cpu.processor_status_flags.set_mask(flags);
+    // PLP
+    pub fn pop_status(&mut self) {
+        let flags = self.stack_pointer.pop();
+        self.processor_status_flags.set_mask(flags);
+        self.program_counter.increment(0);
+    }
 }

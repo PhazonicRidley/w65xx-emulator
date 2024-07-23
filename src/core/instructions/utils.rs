@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::core::register::{ProcessorStatusRegister, StatusFlags};
+use crate::core::register::{StatusRegister, StatusFlags};
 
 pub enum AddressingModes {
     // Param == Operand, considering all words with little endian as thats how they will appear in machine code.
@@ -73,7 +73,7 @@ pub enum BranchMode {
 }
 
 impl BranchMode {
-    pub fn verify(&self, flag_reg: &ProcessorStatusRegister) -> bool {
+    pub fn verify(&self, flag_reg: &StatusRegister) -> bool {
         match self {
             Self::BEQ => flag_reg.check_flag(StatusFlags::Zero), // Z = 1
             Self::BCC => !flag_reg.check_flag(StatusFlags::Carry), // C = 0
@@ -92,7 +92,7 @@ impl BranchMode {
 mod tests {
     use std::vec;
 
-    use crate::core::register::{ProcessorStatusRegister, StatusFlags};
+    use crate::core::register::{StatusRegister, StatusFlags};
 
     #[test]
     fn overflow_test_addition() {
@@ -101,7 +101,7 @@ mod tests {
         let second_operands: Vec<u8> = vec![0x10, 0x50, 0x90, 0xD0, 0x10, 0x50, 0x90, 0xD0];
         let mut results: Vec<bool> = vec![];
         let expected_results = vec![false, true, false, false, false, false, true, false];
-        let mut status_flags = ProcessorStatusRegister::new();
+        let mut status_flags = StatusRegister::new();
         assert_eq!(first_operands.len(), second_operands.len());
         // Execute
         for i in 0..first_operands.len() {
@@ -123,7 +123,7 @@ mod tests {
         let second_operands: Vec<u8> = vec![!0xF0, !0xB0, !0x70, !0x30, !0xF0, !0xB0, !0x70, !0x30];
         let mut results: Vec<bool> = vec![];
         let expected_results = vec![false, true, false, false, false, false, true, false];
-        let mut status_flags = ProcessorStatusRegister::new();
+        let mut status_flags = StatusRegister::new();
         assert_eq!(first_operands.len(), second_operands.len());
         // Execute
         for i in 0..first_operands.len() {
@@ -143,7 +143,7 @@ mod tests {
     fn carry_test() {
         let mut first: u8 = 0xff;
         let mut second: u8 = 0x2;
-        let mut status_flags = ProcessorStatusRegister::new();
+        let mut status_flags = StatusRegister::new();
 
         status_flags.add_update_carry_flag(first, second);
 

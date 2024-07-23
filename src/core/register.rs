@@ -1,102 +1,61 @@
-use std::{
-    error::Error,
-    fmt::Display,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, error::Error, fmt::Display, rc::Rc};
 
 use crate::peripherals::memory::VirtualMemory;
-use num_traits::Unsigned;
 use strum::EnumIter;
 
-pub trait Register<T: Unsigned> {
-    fn load_data(&mut self, data: T);
-    fn get_data(&self) -> T;
-    fn reset_register(&mut self);
-}
-
 #[derive(Debug)]
-pub struct Accumulator {
-    data: u8,
+pub struct DataRegister {
+    m_name: String,
+    pub m_value: u8,
 }
-
-impl Accumulator {
-    pub fn new() -> Self {
-        return Accumulator { data: 0 };
-    }
-}
-
-impl Register<u8> for Accumulator {
-    fn load_data(&mut self, data: u8) {
-        self.data = data
-    }
-
-    fn get_data(&self) -> u8 {
-        return self.data;
-    }
-
-    fn reset_register(&mut self) {
-        self.data = 0;
-    }
-}
-#[derive(Debug)]
-pub struct IndexRegister {
-    name: char,
-    data: u8,
-}
-impl IndexRegister {
-    pub fn new(name: char) -> Self {
-        return IndexRegister {
-            name: name,
-            data: 0,
+impl DataRegister {
+    pub fn new(p_name: String) -> Self {
+        return DataRegister {
+            m_name: p_name,
+            m_value: 0,
         };
     }
 
-    pub fn get_name(&self) -> char {
-        return self.name;
-    }
-}
-
-impl Register<u8> for IndexRegister {
-    fn load_data(&mut self, data: u8) {
-        self.data = data
+    pub fn get_name(&self) -> &str {
+        return self.m_name.as_str();
     }
 
-    fn get_data(&self) -> u8 {
-        return self.data;
-    }
-
-    fn reset_register(&mut self) {
-        self.data = 0;
+    pub fn reset_register(&mut self) {
+        self.m_value = 0;
     }
 }
 
 #[derive(Debug)]
 pub struct ProgramCounter {
-    data: u16, // Storing the two 8bit buffers in a single block
+    pub m_value: u16, // Storing the two 8bit buffers in a single block
+    m_default: u16,
 }
 impl From<u16> for ProgramCounter {
-    fn from(value: u16) -> Self {
-        return ProgramCounter { data: value };
+    fn from(p_default: u16) -> Self {
+        return ProgramCounter {
+            m_value: p_default,
+            m_default: p_default,
+        };
     }
 }
 
 impl ProgramCounter {
     fn fetch_byte(&self, low_byte: bool) -> u8 {
         if low_byte {
-            return (self.data & 0xFF) as u8;
+            return (self.m_value & 0xFF) as u8;
         } else {
-            return ((self.data & 0xFF00) >> 8) as u8;
+            return ((self.m_value & 0xFF00) >> 8) as u8;
         }
     }
 
     fn set_byte(&mut self, byte: u8, low_byte: bool) {
         if low_byte {
-            self.data &= 0xFF << 8; // clear low byte
-            self.data |= byte as u16;
+            self.m_value &= 0xFF << 8; // clear low byte
+            self.m_value |= byte as u16;
         } else {
-            self.data &= 0xFF; // clear higher byte
+            self.m_value &= 0xFF; // clear higher byte
             let zero_extended_byte = byte as u16;
-            self.data |= (zero_extended_byte << 8) as u16;
+            self.m_value |= (zero_extended_byte << 8) as u16;
         }
     }
 
@@ -117,72 +76,49 @@ impl ProgramCounter {
 
     /// Increments program counter at least by 1. Adds how many parameters were used into the sum. 1 + number of parameters used
     pub fn increment(&mut self, num_params: u16) {
-        self.data += num_params + 1;
-    }
-}
-
-impl Register<u16> for ProgramCounter {
-    fn load_data(&mut self, data: u16) {
-        self.data = data;
+        self.m_value += num_params + 1;
     }
 
-    fn get_data(&self) -> u16 {
-        return self.data;
-    }
-
-    fn reset_register(&mut self) {
-        self.data = 0;
+    pub fn reset_register(&mut self) {
+        self.m_value = self.m_default;
     }
 }
 
 #[derive(Debug)]
 // Register for the pointer to manage the 256 byte stack
 pub struct StackPointerRegister {
-    address_range: u8, // the high byte of the stack pointer address range
-    pointer: u8,
-    memory_arc: Arc<Mutex<VirtualMemory>>,
+    m_page: u8, // the high byte of the stack pointer address range
+    m_pointer: u8,
+    m_memory_rc: Rc<RefCell<VirtualMemory>>,
 }
 
 impl StackPointerRegister {
-    pub fn new(addr_range: u8, start_location: u8, memory: Arc<Mutex<VirtualMemory>>) -> Self {
+    pub fn new(p_page: u8, p_start_addr: u8, p_memory_rc: Rc<RefCell<VirtualMemory>>) -> Self {
         return StackPointerRegister {
-            address_range: addr_range,
-            pointer: start_location,
-            memory_arc: memory,
+            m_page: p_page,
+            m_pointer: p_start_addr,
+            m_memory_rc: p_memory_rc,
         };
     }
 
-    pub fn push(&mut self, data: u8) {
-        self.memory_arc.lock().unwrap()[self.pointer as u16] = data;
-        self.pointer = self.pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
+    pub fn push(&mut self, p_data: u8) {
+        self.m_memory_rc.borrow_mut()[self.m_pointer as u16] = p_data;
+        self.m_pointer = self.m_pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
     }
     pub fn pop(&mut self) -> u8 {
-        self.pointer = self.pointer.wrapping_add(1); // increment stack pointer, allows for overflows
-        let byte = self.memory_arc.lock().unwrap()[self.pointer as u16];
+        self.m_pointer = self.m_pointer.wrapping_add(1); // increment stack pointer, allows for overflows
+        let byte = self.m_memory_rc.borrow()[self.m_pointer as u16];
         return byte;
     }
-}
 
-impl Register<u8> for StackPointerRegister {
-    fn load_data(&mut self, data: u8) {
-        self.pointer = data
+    pub fn get_pointer(&self) -> u8 {
+        return self.m_pointer;
     }
 
-    fn get_data(&self) -> u8 {
-        return self.pointer;
+    pub fn reset_register(&mut self) {
+        self.m_page = 0x01;
+        self.m_pointer = 0xFF;
     }
-
-    fn reset_register(&mut self) {
-        self.address_range = 0x01;
-        self.pointer = 0xFF;
-    }
-}
-
-// The flag byte of the 6502 are Negative, Overflow, (padding bit), Break mark (BRK) command, decimal mode, Interupt Request, Zero, and Carry.
-// Each are to be
-#[derive(Debug)]
-pub struct ProcessorStatusRegister {
-    flags: u8,
 }
 
 #[derive(Debug, EnumIter, Clone)]
@@ -197,7 +133,7 @@ pub enum StatusFlags {
 }
 
 impl StatusFlags {
-    fn get_mask(&self) -> u8 {
+    pub fn get_mask(&self) -> u8 {
         return match self {
             Self::Carry => 1,
             Self::Zero => 1 << 1,
@@ -210,18 +146,27 @@ impl StatusFlags {
     }
 }
 
-impl ProcessorStatusRegister {
+// The flag byte of the 6502 are Negative, Overflow, (padding bit), Break mark (BRK) command, decimal mode, Interupt Request, Zero, and Carry.
+// Each are to be
+#[derive(Debug)]
+pub struct StatusRegister {
+    m_flags: u8,
+}
+
+impl StatusRegister {
     pub fn new() -> Self {
-        return ProcessorStatusRegister { flags: 0b00100000 };
+        return StatusRegister {
+            m_flags: 0b00100000,
+        };
     }
 
     fn bit_manager(&mut self, flag: StatusFlags, to_set: bool) {
-        let mask: u8 = flag.get_mask();
+        let mask = flag.get_mask();
         if to_set {
-            self.flags |= mask;
+            self.m_flags |= mask;
         } else {
             let inverse_mask = !mask;
-            self.flags &= inverse_mask;
+            self.m_flags &= inverse_mask;
         }
     }
 
@@ -234,26 +179,26 @@ impl ProcessorStatusRegister {
     }
 
     pub fn check_flag(&self, flag: StatusFlags) -> bool {
-        let mask: u8 = flag.get_mask();
-        let bit_state = mask & self.flags;
+        let mask = flag.get_mask();
+        let bit_state = mask & self.m_flags;
         return bit_state != 0;
     }
 
     pub fn check_mask(&self, mask: u8) -> bool {
-        return self.flags & mask == mask;
+        return self.m_flags & mask == mask;
     }
 
     pub fn set_mask(&mut self, mask: u8) {
-        self.flags &= 0;
-        self.flags |= mask | 32;
+        self.m_flags &= 0;
+        self.m_flags |= mask | 32;
     }
 
     pub fn clear_mask(&mut self, mask: u8) {
-        self.flags &= !mask | 32;
+        self.m_flags &= !mask | 32;
     }
 
     pub fn get_flags(&self) -> u8 {
-        return self.flags;
+        return self.m_flags;
     }
 
     pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {

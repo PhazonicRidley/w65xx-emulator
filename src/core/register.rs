@@ -5,36 +5,36 @@ use strum::EnumIter;
 
 #[derive(Debug)]
 pub struct DataRegister {
-    m_name: String,
-    pub m_value: u8,
+    name: String,
+    pub value: u8,
 }
 impl DataRegister {
     pub fn new(p_name: impl Into<String>) -> Self {
         return DataRegister {
-            m_name: p_name.into(),
-            m_value: 0,
+            name: p_name.into(),
+            value: 0,
         };
     }
 
     pub fn get_name(&self) -> &str {
-        return self.m_name.as_str();
+        return self.name.as_str();
     }
 
     pub fn reset_register(&mut self) {
-        self.m_value = 0;
+        self.value = 0;
     }
 }
 
 #[derive(Debug)]
 pub struct ProgramCounter {
-    pub m_value: u16, // Storing the two 8bit buffers in a single block
-    m_default: u16,
+    pub value: u16, // Storing the two 8bit buffers in a single block
+    default: u16,
 }
 impl From<u16> for ProgramCounter {
     fn from(p_default: u16) -> Self {
         return ProgramCounter {
-            m_value: p_default,
-            m_default: p_default,
+            value: p_default,
+            default: p_default,
         };
     }
 }
@@ -42,20 +42,20 @@ impl From<u16> for ProgramCounter {
 impl ProgramCounter {
     fn fetch_byte(&self, low_byte: bool) -> u8 {
         if low_byte {
-            return (self.m_value & 0xFF) as u8;
+            return (self.value & 0xFF) as u8;
         } else {
-            return ((self.m_value & 0xFF00) >> 8) as u8;
+            return ((self.value & 0xFF00) >> 8) as u8;
         }
     }
 
     fn set_byte(&mut self, byte: u8, low_byte: bool) {
         if low_byte {
-            self.m_value &= 0xFF << 8; // clear low byte
-            self.m_value |= byte as u16;
+            self.value &= 0xFF << 8; // clear low byte
+            self.value |= byte as u16;
         } else {
-            self.m_value &= 0xFF; // clear higher byte
+            self.value &= 0xFF; // clear higher byte
             let zero_extended_byte = byte as u16;
-            self.m_value |= (zero_extended_byte << 8) as u16;
+            self.value |= (zero_extended_byte << 8) as u16;
         }
     }
 
@@ -76,48 +76,48 @@ impl ProgramCounter {
 
     /// Increments program counter at least by 1. Adds how many parameters were used into the sum. 1 + number of parameters used
     pub fn increment(&mut self, num_params: u16) {
-        self.m_value += num_params + 1;
+        self.value += num_params + 1;
     }
 
     pub fn reset_register(&mut self) {
-        self.m_value = self.m_default;
+        self.value = self.default;
     }
 }
 
 #[derive(Debug)]
 // Register for the pointer to manage the 256 byte stack
 pub struct StackPointerRegister {
-    m_page: u8, // the high byte of the stack pointer address range
-    m_pointer: u8,
-    m_memory_rc: Rc<RefCell<VirtualMemory>>,
+    page: u8, // the high byte of the stack pointer address range
+    pointer: u8,
+    memory_rc: Rc<RefCell<VirtualMemory>>,
 }
 
 impl StackPointerRegister {
     pub fn new(p_page: u8, p_start_addr: u8, p_memory_rc: Rc<RefCell<VirtualMemory>>) -> Self {
         return StackPointerRegister {
-            m_page: p_page,
-            m_pointer: p_start_addr,
-            m_memory_rc: p_memory_rc,
+            page: p_page,
+            pointer: p_start_addr,
+            memory_rc: p_memory_rc,
         };
     }
 
     pub fn push(&mut self, p_data: u8) {
-        self.m_memory_rc.borrow_mut()[self.m_pointer as u16] = p_data;
-        self.m_pointer = self.m_pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
+        self.memory_rc.borrow_mut()[self.pointer as u16] = p_data;
+        self.pointer = self.pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
     }
     pub fn pop(&mut self) -> u8 {
-        self.m_pointer = self.m_pointer.wrapping_add(1); // increment stack pointer, allows for overflows
-        let byte = self.m_memory_rc.borrow()[self.m_pointer as u16];
+        self.pointer = self.pointer.wrapping_add(1); // increment stack pointer, allows for overflows
+        let byte = self.memory_rc.borrow()[self.pointer as u16];
         return byte;
     }
 
     pub fn get_pointer(&self) -> u8 {
-        return self.m_pointer;
+        return self.pointer;
     }
 
     pub fn reset_register(&mut self) {
-        self.m_page = 0x01;
-        self.m_pointer = 0xFF;
+        self.page = 0x01;
+        self.pointer = 0xFF;
     }
 }
 
@@ -150,23 +150,21 @@ impl StatusFlags {
 // Each are to be
 #[derive(Debug)]
 pub struct StatusRegister {
-    m_flags: u8,
+    flags: u8,
 }
 
 impl StatusRegister {
     pub fn new() -> Self {
-        return StatusRegister {
-            m_flags: 0b00100000,
-        };
+        return StatusRegister { flags: 0b00100000 };
     }
 
     fn bit_manager(&mut self, flag: StatusFlags, to_set: bool) {
         let mask = flag.get_mask();
         if to_set {
-            self.m_flags |= mask;
+            self.flags |= mask;
         } else {
             let inverse_mask = !mask;
-            self.m_flags &= inverse_mask;
+            self.flags &= inverse_mask;
         }
     }
 
@@ -180,25 +178,25 @@ impl StatusRegister {
 
     pub fn check_flag(&self, flag: StatusFlags) -> bool {
         let mask = flag.get_mask();
-        let bit_state = mask & self.m_flags;
+        let bit_state = mask & self.flags;
         return bit_state != 0;
     }
 
     pub fn check_mask(&self, mask: u8) -> bool {
-        return self.m_flags & mask == mask;
+        return self.flags & mask == mask;
     }
 
     pub fn set_mask(&mut self, mask: u8) {
-        self.m_flags &= 0;
-        self.m_flags |= mask | 32;
+        self.flags &= 0;
+        self.flags |= mask | 32;
     }
 
     pub fn clear_mask(&mut self, mask: u8) {
-        self.m_flags &= !mask | 32;
+        self.flags &= !mask | 32;
     }
 
     pub fn get_flags(&self) -> u8 {
-        return self.m_flags;
+        return self.flags;
     }
 
     pub fn add_update_carry_flag(&mut self, first_operand: u8, second_operand: u8) {

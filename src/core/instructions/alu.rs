@@ -25,9 +25,9 @@ impl CPU {
         if subtract {
             memory_data = !memory_data;
         }
-        let acc_data = self.accumulator_cell.borrow().m_value;
+        let acc_data = self.accumulator_cell.borrow().value;
         let sum = add_two_numbers(&mut self.processor_status_flags, acc_data, memory_data);
-        self.accumulator_cell.borrow_mut().m_value = sum;
+        self.accumulator_cell.borrow_mut().value = sum;
         self.program_counter
             .increment(addressing_mode.parameter_bytes());
     }
@@ -43,9 +43,9 @@ impl CPU {
         let op_result: u8;
         {
             let mut accumulator = self.accumulator_cell.borrow_mut();
-            let acc_data = accumulator.m_value;
+            let acc_data = accumulator.value;
             op_result = operation(acc_data, memory_data);
-            accumulator.m_value = op_result;
+            accumulator.value = op_result;
         }
 
         self.processor_status_flags.update_nz_flags(op_result);
@@ -73,7 +73,7 @@ impl CPU {
         let address_option = self.fetch_address(addressing_mode); // None means the addressing mode is the accumulator
         let mut data = match address_option {
             Some(addr) => self.memory_rc.borrow()[addr],
-            None => self.accumulator_cell.borrow().m_value,
+            None => self.accumulator_cell.borrow().value,
         };
         let old_carry = self.processor_status_flags.check_flag(StatusFlags::Carry) as u8;
         let new_carry = data & 0x80; // shift the MSB down to be a 1 if its set at all to be set in the carry.
@@ -90,7 +90,7 @@ impl CPU {
         }
         match address_option {
             Some(addr) => self.memory_rc.borrow_mut()[addr] = data,
-            None => self.accumulator_cell.borrow_mut().m_value = data,
+            None => self.accumulator_cell.borrow_mut().value = data,
         };
         self.processor_status_flags.update_nz_flags(data);
         self.program_counter
@@ -103,7 +103,7 @@ impl CPU {
         let address_option = self.fetch_address(addressing_mode);
         let mut data = match address_option {
             Some(addr) => self.memory_rc.borrow()[addr],
-            None => self.accumulator_cell.borrow().m_value,
+            None => self.accumulator_cell.borrow().value,
         };
         let new_carry = data & 1;
         data >>= 1;
@@ -119,7 +119,7 @@ impl CPU {
 
         match address_option {
             Some(addr) => self.memory_rc.borrow_mut()[addr] = data,
-            None => self.accumulator_cell.borrow_mut().m_value = data,
+            None => self.accumulator_cell.borrow_mut().value = data,
         };
 
         self.processor_status_flags.update_nz_flags(data);
@@ -131,7 +131,7 @@ impl CPU {
     pub fn bit_instruction(&mut self, addressing_mode: &AddressingModes) {
         let address = self.fetch_address(addressing_mode).unwrap();
         let mem_operand = self.memory_rc.borrow()[address];
-        let result = mem_operand & self.accumulator_cell.borrow().m_value;
+        let result = mem_operand & self.accumulator_cell.borrow().value;
 
         // Set Flags
         if result == 0 {
@@ -169,8 +169,8 @@ impl CPU {
 
     pub fn inc_dec_register(&mut self, register_cell: Rc<RefCell<DataRegister>>, dec: bool) {
         let mut register = register_cell.borrow_mut();
-        let value = register.m_value;
-        register.m_value = if dec {
+        let value = register.value;
+        register.value = if dec {
             value.wrapping_sub(1)
         } else {
             value.wrapping_add(1)

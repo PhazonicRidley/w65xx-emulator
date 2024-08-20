@@ -26,7 +26,7 @@ fn compare_gt_test() {
     let mut cpu = test_setup();
 
     // Execute
-    cpu.accumulator_cell.borrow_mut().m_value = 0x2;
+    cpu.accumulator_cell.borrow_mut().value = 0x2;
     cpu.compare(&AddressingModes::Immediate, cpu.accumulator_cell.clone());
 
     // Verify
@@ -42,8 +42,8 @@ fn compare_lt_test() {
     let mut cpu = test_setup();
 
     // Execute
-    cpu.accumulator_cell.borrow_mut().m_value = 1;
-    cpu.x_cell.borrow_mut().m_value = 2;
+    cpu.accumulator_cell.borrow_mut().value = 1;
+    cpu.x_cell.borrow_mut().value = 2;
     cpu.compare(
         &AddressingModes::AbsoluteXIndex,
         cpu.accumulator_cell.clone(),
@@ -62,7 +62,7 @@ fn compare_eq_test() {
     let mut cpu = test_setup();
 
     // Execute
-    cpu.accumulator_cell.borrow_mut().m_value = 1;
+    cpu.accumulator_cell.borrow_mut().value = 1;
     cpu.compare(&AddressingModes::Immediate, cpu.accumulator_cell.clone());
 
     // Verify
@@ -77,5 +77,4 @@ fn compare_eq_test() {
 #[test]
 fn jump_test() {
     // Setup
-    let mut cpu = test_setup();
 }

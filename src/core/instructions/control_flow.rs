@@ -1,7 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use std::{cell::RefCell, rc::Rc};
-
 use super::{alu, utils::AddressingModes, utils::BranchMode};
 use crate::core::{
     cpu::CPU,
@@ -20,14 +18,14 @@ impl CPU {
         self.processor_status_flags.clear_flag(StatusFlags::Carry); // Carry flag will be updated regardless
         alu::add_two_numbers(
             &mut self.processor_status_flags,
-            reg_cell.borrow().m_value,
+            reg_cell.borrow().value,
             !mem_data + 1,
         );
     }
 
     // JMP, JSR
     pub fn jump(&mut self, addressing_mode: &AddressingModes, is_subroutine: bool) {
-        let pc_val = self.program_counter.m_value;
+        let pc_val = self.program_counter.value;
         let address = self.fetch_address(addressing_mode).unwrap();
         let delta = self.memory_rc.borrow_mut()[address];
         let new_pc = pc_val.wrapping_add(delta as u16);
@@ -37,7 +35,7 @@ impl CPU {
             self.stack_pointer.push(self.program_counter.get_pch());
             self.stack_pointer.push(self.program_counter.get_pcl());
         }
-        self.program_counter.m_value = new_pc; // Jump
+        self.program_counter.value = new_pc; // Jump
     }
 
     // RTS
@@ -57,8 +55,8 @@ impl CPU {
         }
         let address = self.fetch_address(&AddressingModes::Relative).unwrap();
         let delta = self.memory_rc.borrow()[address];
-        let old_pc = self.program_counter.m_value;
+        let old_pc = self.program_counter.value;
         let new_pc = old_pc.wrapping_add(delta as u16);
-        self.program_counter.m_value = new_pc;
+        self.program_counter.value = new_pc;
     }
 }

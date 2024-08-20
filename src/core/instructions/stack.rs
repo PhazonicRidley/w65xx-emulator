@@ -3,7 +3,7 @@ use crate::core::cpu::CPU;
 impl CPU {
     // PHA
     pub fn push_accumulator(&mut self) {
-        let acc_value = self.accumulator_cell.borrow().m_value;
+        let acc_value = self.accumulator_cell.borrow().value;
         self.stack_pointer.push(acc_value);
         self.program_counter.increment(0);
     }
@@ -18,7 +18,7 @@ impl CPU {
     // PLA
     pub fn pop_accumulator(&mut self) {
         let acc_value = self.stack_pointer.pop();
-        self.accumulator_cell.borrow_mut().m_value = acc_value;
+        self.accumulator_cell.borrow_mut().value = acc_value;
         self.program_counter.increment(0);
     }
 

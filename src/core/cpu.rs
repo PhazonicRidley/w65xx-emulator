@@ -38,14 +38,13 @@ impl CPU {
 
     pub fn boot_cycle(&mut self) {
         // TODO: 7 clock cycles
-        return;
         self.program_counter.reset_register();
         let program_start_location: u16;
         {
             let memory = self.memory_rc.borrow();
             program_start_location = memory.read_word(0xFFFC);
         }
-        self.program_counter.m_value = program_start_location;
+        self.program_counter.value = program_start_location;
     }
 
     pub fn fetch_address(&self, addressing_mode: &AddressingModes) -> Option<u16> {
@@ -54,28 +53,28 @@ impl CPU {
         let x = self.x_cell.borrow();
         let y = self.y_cell.borrow();
         match addressing_mode {
-            AddressingModes::Immediate | AddressingModes::Relative => Some(pc.m_value + 1),
-            AddressingModes::Absolute => Some(memory.read_word(pc.m_value + 1)),
+            AddressingModes::Immediate | AddressingModes::Relative => Some(pc.value + 1),
+            AddressingModes::Absolute => Some(memory.read_word(pc.value + 1)),
             AddressingModes::AbsoluteXIndex => {
-                Some(memory.read_word(pc.m_value + 1) + (x.m_value as u16))
+                Some(memory.read_word(pc.value + 1) + (x.value as u16))
             }
             AddressingModes::AbsoluteYIndex => {
-                Some(memory.read_word(pc.m_value + 1) + (y.m_value as u16))
+                Some(memory.read_word(pc.value + 1) + (y.value as u16))
             }
             AddressingModes::Indirect => {
-                let lookup_addr = memory.read_word(pc.m_value + 1);
+                let lookup_addr = memory.read_word(pc.value + 1);
                 Some(memory.read_word(lookup_addr))
             }
-            AddressingModes::ZeroPage => Some(memory[pc.m_value + 1] as u16),
-            AddressingModes::ZeroPageXIndex => Some((memory[pc.m_value + 1] + x.m_value) as u16),
-            AddressingModes::ZeroPageYIndex => Some((memory[pc.m_value + 1] + y.m_value) as u16),
+            AddressingModes::ZeroPage => Some(memory[pc.value + 1] as u16),
+            AddressingModes::ZeroPageXIndex => Some((memory[pc.value + 1] + x.value) as u16),
+            AddressingModes::ZeroPageYIndex => Some((memory[pc.value + 1] + y.value) as u16),
 
             AddressingModes::PreIndexIndirect => {
-                let lookup_addr = (memory[pc.m_value + 1 + (x.m_value as u16)]) as u16;
+                let lookup_addr = (memory[pc.value + 1 + (x.value as u16)]) as u16;
                 Some(memory.read_word(lookup_addr))
             }
             AddressingModes::PostIndexIndirect => {
-                let lookup_addr = (memory[pc.m_value + 1] + y.m_value) as u16;
+                let lookup_addr = (memory[pc.value + 1] + y.value) as u16;
                 Some(memory.read_word(lookup_addr))
             }
 

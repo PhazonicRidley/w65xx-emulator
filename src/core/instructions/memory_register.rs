@@ -19,9 +19,8 @@ impl CPU {
         data = memory[address];
 
         let mut register = destination_reg_cell.borrow_mut();
-        register.m_value = data;
-        self.processor_status_flags
-            .update_nz_flags(register.m_value);
+        register.value = data;
+        self.processor_status_flags.update_nz_flags(register.value);
         self.program_counter
             .increment(addressing_mode.parameter_bytes());
     }
@@ -35,7 +34,7 @@ impl CPU {
         let address = self.fetch_address(&addressing_mode).unwrap();
         {
             let mut memory = self.memory_rc.borrow_mut();
-            memory[address] = source_reg_cell.borrow().m_value;
+            memory[address] = source_reg_cell.borrow().value;
         }
 
         self.program_counter
@@ -48,10 +47,10 @@ impl CPU {
         source_register: Rc<RefCell<DataRegister>>,
         destination_register: Rc<RefCell<DataRegister>>,
     ) {
-        let data = source_register.borrow().m_value;
-        destination_register.borrow_mut().m_value = data;
+        let data = source_register.borrow().value;
+        destination_register.borrow_mut().value = data;
         self.processor_status_flags
-            .update_nz_flags(destination_register.borrow().m_value);
+            .update_nz_flags(destination_register.borrow().value);
         self.program_counter.increment(0); // Only possible addressing mode is implied which has no parameters.
     }
 }

@@ -28,14 +28,14 @@ fn load_test() {
     cpu.load_instruction(AddressingModes::Immediate, cpu.accumulator_cell.clone());
 
     // Verify
-    assert_eq!(cpu.accumulator_cell.borrow().m_value, 0x1);
+    assert_eq!(cpu.accumulator_cell.borrow().value, 0x1);
 }
 
 #[test]
 fn store_test() {
     // Setup
     let mut cpu = test_setup();
-    cpu.accumulator_cell.borrow_mut().m_value = 0x5;
+    cpu.accumulator_cell.borrow_mut().value = 0x5;
 
     // Execute
     cpu.store_instruction(AddressingModes::Immediate, cpu.accumulator_cell.clone());
@@ -48,12 +48,12 @@ fn store_test() {
 fn transfer_test() {
     // Setup
     let mut cpu = test_setup();
-    cpu.accumulator_cell.borrow_mut().m_value = 0x5;
-    cpu.x_cell.borrow_mut().m_value = 0xA;
+    cpu.accumulator_cell.borrow_mut().value = 0x5;
+    cpu.x_cell.borrow_mut().value = 0xA;
 
     // Execute
     cpu.transfer_register(cpu.accumulator_cell.clone(), cpu.x_cell.clone());
 
     // Verify
-    assert_eq!(cpu.x_cell.borrow().m_value, 0x5);
+    assert_eq!(cpu.x_cell.borrow().value, 0x5);
 }

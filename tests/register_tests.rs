@@ -10,11 +10,11 @@ fn register_read_write_test() {
     // Set up
     let mut accumulator = DataRegister::new("a");
     // Execute
-    accumulator.m_value = 0x13;
-    accumulator.m_value = 0x13;
+    accumulator.value = 0x13;
+    accumulator.value = 0x13;
 
     // Verify
-    assert_eq!(accumulator.m_value, 0x13 as u8);
+    assert_eq!(accumulator.value, 0x13 as u8);
 }
 
 #[test]
@@ -23,12 +23,12 @@ fn reset_register_test() {
     let mut accumulator = DataRegister::new("a");
 
     // Execute
-    accumulator.m_value = 0xFF;
-    accumulator.m_value = 0xFF;
+    accumulator.value = 0xFF;
+    accumulator.value = 0xFF;
     accumulator.reset_register();
 
     // Verify
-    assert_eq!(accumulator.m_value, 0);
+    assert_eq!(accumulator.value, 0);
 }
 
 #[test]
@@ -36,18 +36,16 @@ fn index_register_test() {
     // Set up
     let mut x_register = DataRegister::new('x');
     let mut y_register = DataRegister::new('y');
-    let mut x_register = DataRegister::new('x');
-    let mut y_register = DataRegister::new('y');
 
     // Execute
-    x_register.m_value = 0x7F;
-    y_register.m_value = 0xFF;
-    x_register.m_value = 0x7F;
-    y_register.m_value = 0xFF;
+    x_register.value = 0x7F;
+    y_register.value = 0xFF;
+    x_register.value = 0x7F;
+    y_register.value = 0xFF;
 
     // Verify
-    assert_eq!(x_register.m_value, 0x7F);
-    assert_eq!(y_register.m_value, 0xFF);
+    assert_eq!(x_register.value, 0x7F);
+    assert_eq!(y_register.value, 0xFF);
     assert_ne!(x_register.get_name(), y_register.get_name());
 }
 
@@ -66,7 +64,7 @@ fn program_counter_byte_manip_test() {
     // Verify
     assert_eq!(pc.get_pch(), new_high_byte);
     assert_eq!(pc.get_pcl(), new_low_byte);
-    assert_eq!(pc.m_value, new_pc_value);
+    assert_eq!(pc.value, new_pc_value);
 }
 
 #[test]
@@ -79,7 +77,7 @@ fn program_counter_param_increment_test() {
     pc.increment(parms);
 
     // Verify
-    assert_eq!(pc.m_value, 0x8004);
+    assert_eq!(pc.value, 0x8004);
 }
 
 #[test]
@@ -91,7 +89,7 @@ fn program_counter_increment_test() {
     pc.increment(0); // No params, instruction only has op code
 
     // Verify
-    assert_eq!(pc.m_value, 0x8003);
+    assert_eq!(pc.value, 0x8003);
 }
 
 #[test]

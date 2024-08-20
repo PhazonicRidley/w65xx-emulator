@@ -38,6 +38,7 @@ impl CPU {
 
     pub fn boot_cycle(&mut self) {
         // TODO: 7 clock cycles
+        return;
         self.program_counter.reset_register();
         let program_start_location: u16;
         {

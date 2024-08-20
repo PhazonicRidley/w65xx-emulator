@@ -11,6 +11,7 @@ fn register_read_write_test() {
     let mut accumulator = DataRegister::new("a");
     // Execute
     accumulator.m_value = 0x13;
+    accumulator.m_value = 0x13;
 
     // Verify
     assert_eq!(accumulator.m_value, 0x13 as u8);
@@ -23,6 +24,7 @@ fn reset_register_test() {
 
     // Execute
     accumulator.m_value = 0xFF;
+    accumulator.m_value = 0xFF;
     accumulator.reset_register();
 
     // Verify
@@ -34,8 +36,12 @@ fn index_register_test() {
     // Set up
     let mut x_register = DataRegister::new('x');
     let mut y_register = DataRegister::new('y');
+    let mut x_register = DataRegister::new('x');
+    let mut y_register = DataRegister::new('y');
 
     // Execute
+    x_register.m_value = 0x7F;
+    y_register.m_value = 0xFF;
     x_register.m_value = 0x7F;
     y_register.m_value = 0xFF;
 

@@ -1,4 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 use w65xx_emulator::core::cpu::*;
 use w65xx_emulator::core::instructions::utils::AddressingModes;
 use w65xx_emulator::peripherals::memory::VirtualMemory;
@@ -6,6 +7,7 @@ use w65xx_emulator::peripherals::memory::VirtualMemory;
 #[test]
 fn verify_boot_cycle() {
     // Set up
+    let mem_rc = Rc::new(RefCell::new(VirtualMemory::new()));
     let mem_rc = Rc::new(RefCell::new(VirtualMemory::new()));
     let rom: Vec<u8> = vec![0x00, 0x80];
     let mut cpu = CPU::new(mem_rc.clone());
@@ -20,6 +22,7 @@ fn verify_boot_cycle() {
 }
 
 fn address_mode_setup() -> CPU {
+    let mem_rc = Rc::new(RefCell::new(VirtualMemory::new()));
     let mem_rc = Rc::new(RefCell::new(VirtualMemory::new()));
     // Make a test rom that is padded from 0 to 0xFEFF with 0xEA and
     // Then 0xFEFF to 0xFFFB is just counted up from 0, finally 0xFFFC is 0x00 and 0xFFFD is 0xFF
@@ -43,6 +46,8 @@ fn address_mode_setup() -> CPU {
     //     println!("{:#04x}: {:#02x}", i, byte);
     //     i += 1;
     // }
+
+    let mut memory = mem_rc.borrow_mut();
 
     // Sanity checks
     assert_eq!(rom.len(), 0xFFFF);
@@ -103,7 +108,9 @@ fn addr_absolute_x_test() {
 
     // Execute
     cpu.x_cell.borrow_mut().m_value = 4;
+    cpu.x_cell.borrow_mut().m_value = 4;
     let address = cpu.fetch_address(&AddressingModes::AbsoluteXIndex).unwrap();
+    let data = cpu.memory_rc.borrow()[address];
     let data = cpu.memory_rc.borrow()[address];
 
     // Verify
@@ -116,14 +123,17 @@ fn addr_absolute_x_test() {
 fn addr_absolute_y_test() {
     // Setup
     let cpu = address_mode_setup();
+    let cpu = address_mode_setup();
     let pc = &cpu.program_counter;
 
     // Execute
     cpu.y_cell.borrow_mut().m_value = 7;
     let address = cpu.fetch_address(&AddressingModes::AbsoluteYIndex).unwrap();
     let data = cpu.memory_rc.borrow()[address];
+    let data = cpu.memory_rc.borrow()[address];
 
     // Verify
+    assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(address, 0x0208);
     assert_eq!(data, 0xea)
@@ -149,6 +159,7 @@ fn addr_indirect_test() {
 fn addr_indirect_x_test() {
     // Setup
     let cpu = address_mode_setup();
+    let cpu = address_mode_setup();
     let pc = &cpu.program_counter;
 
     // Execute
@@ -160,6 +171,7 @@ fn addr_indirect_x_test() {
 
     // Verify
     assert_eq!(pc.m_value, 0xFF00);
+    assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(address, 0x0706); // pc + 1 = 0x1, x = 5. lookup addr = 0x0006, read word: 0x0706
     assert_eq!(data, 0xea); // almost all padding is 0xEA (nop instruction)
 }
@@ -167,6 +179,7 @@ fn addr_indirect_x_test() {
 #[test]
 fn addr_indirect_y_test() {
     // Setup
+    let cpu = address_mode_setup();
     let cpu = address_mode_setup();
     let pc = &cpu.program_counter;
 
@@ -176,8 +189,10 @@ fn addr_indirect_y_test() {
         .fetch_address(&AddressingModes::PostIndexIndirect)
         .unwrap();
     let data = cpu.memory_rc.borrow()[address];
+    let data = cpu.memory_rc.borrow()[address];
 
     // Verify
+    assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(address, 0x0C0B); // pc + 1 = 0x1, lookup address = 0xB (0x0001 has 0x1) then + 10 (y) gives 0xB
     assert_eq!(data, 0xea); // almost all padding is 0xEA (nop instruction)
@@ -192,6 +207,7 @@ fn addr_zeropage_test() {
     // Execute
     let address = cpu.fetch_address(&AddressingModes::ZeroPage).unwrap();
     let data = cpu.memory_rc.borrow()[address];
+    let data = cpu.memory_rc.borrow()[address];
 
     // Verify
     assert_eq!(pc.m_value, 0xFF00);
@@ -203,14 +219,17 @@ fn addr_zeropage_test() {
 fn addr_zeropage_x_test() {
     // Setup
     let cpu = address_mode_setup();
+    let cpu = address_mode_setup();
     let pc = &cpu.program_counter;
 
     // Execute
     cpu.x_cell.borrow_mut().m_value = 7;
     let address = cpu.fetch_address(&AddressingModes::ZeroPageXIndex).unwrap();
     let data = cpu.memory_rc.borrow()[address];
+    let data = cpu.memory_rc.borrow()[address];
 
     // Verify
+    assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(pc.m_value, 0xFF00);
     assert_eq!(address, 0x0008);
     assert_eq!(data, 0x8);
@@ -221,6 +240,7 @@ fn addr_zeropage_y_test() {
     // Setup
     let cpu = address_mode_setup();
     let pc = &cpu.program_counter;
+    let y = &mut cpu.y_register;
 
     // Execute
     cpu.y_cell.borrow_mut().m_value = 10;

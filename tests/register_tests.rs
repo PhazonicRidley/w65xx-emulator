@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use strum::IntoEnumIterator;
 use w65xx_emulator::core::register::*;
@@ -7,40 +8,44 @@ use w65xx_emulator::peripherals::memory::VirtualMemory;
 #[test]
 fn register_read_write_test() {
     // Set up
-    let mut accumulator = Accumulator::new();
+    let mut accumulator = DataRegister::new("a");
     // Execute
-    accumulator.load_data(0x13);
+    accumulator.value = 0x13;
+    accumulator.value = 0x13;
 
     // Verify
-    assert_eq!(accumulator.get_data(), 0x13 as u8);
+    assert_eq!(accumulator.value, 0x13 as u8);
 }
 
 #[test]
 fn reset_register_test() {
     // Set up
-    let mut accumulator = Accumulator::new();
+    let mut accumulator = DataRegister::new("a");
 
     // Execute
-    accumulator.load_data(0xFF);
+    accumulator.value = 0xFF;
+    accumulator.value = 0xFF;
     accumulator.reset_register();
 
     // Verify
-    assert_eq!(accumulator.get_data(), 0);
+    assert_eq!(accumulator.value, 0);
 }
 
 #[test]
 fn index_register_test() {
     // Set up
-    let mut x_register = IndexRegister::new('x');
-    let mut y_register = IndexRegister::new('y');
+    let mut x_register = DataRegister::new('x');
+    let mut y_register = DataRegister::new('y');
 
     // Execute
-    x_register.load_data(0x7F);
-    y_register.load_data(0xFF);
+    x_register.value = 0x7F;
+    y_register.value = 0xFF;
+    x_register.value = 0x7F;
+    y_register.value = 0xFF;
 
     // Verify
-    assert_eq!(x_register.get_data(), 0x7F);
-    assert_eq!(y_register.get_data(), 0xFF);
+    assert_eq!(x_register.value, 0x7F);
+    assert_eq!(y_register.value, 0xFF);
     assert_ne!(x_register.get_name(), y_register.get_name());
 }
 
@@ -59,7 +64,7 @@ fn program_counter_byte_manip_test() {
     // Verify
     assert_eq!(pc.get_pch(), new_high_byte);
     assert_eq!(pc.get_pcl(), new_low_byte);
-    assert_eq!(pc.get_data(), new_pc_value);
+    assert_eq!(pc.value, new_pc_value);
 }
 
 #[test]
@@ -72,7 +77,7 @@ fn program_counter_param_increment_test() {
     pc.increment(parms);
 
     // Verify
-    assert_eq!(pc.get_data(), 0x8004);
+    assert_eq!(pc.value, 0x8004);
 }
 
 #[test]
@@ -84,13 +89,13 @@ fn program_counter_increment_test() {
     pc.increment(0); // No params, instruction only has op code
 
     // Verify
-    assert_eq!(pc.get_data(), 0x8003);
+    assert_eq!(pc.value, 0x8003);
 }
 
 #[test]
 fn stack_push_test() {
     // Setup
-    let memory: Arc<Mutex<VirtualMemory>> = Arc::new(Mutex::new(VirtualMemory::new()));
+    let memory = Rc::new(RefCell::new(VirtualMemory::new()));
     let mut stack_ptr = StackPointerRegister::new(0x01, 0xFF, memory.clone());
 
     // Execute
@@ -99,7 +104,7 @@ fn stack_push_test() {
     stack_ptr.push(0x03);
 
     // Verify
-    let mem_inner = memory.lock().unwrap();
+    let mem_inner = memory.borrow();
     assert_eq!(mem_inner[0xFF], 0x01);
     assert_eq!(mem_inner[0xFE], 0x02);
     assert_eq!(mem_inner[0xFD], 0x03);
@@ -107,7 +112,7 @@ fn stack_push_test() {
 
 #[test]
 fn stack_pull_test() {
-    let memory: Arc<Mutex<VirtualMemory>> = Arc::new(Mutex::new(VirtualMemory::new()));
+    let memory = Rc::new(RefCell::new(VirtualMemory::new()));
     let mut stack_ptr = StackPointerRegister::new(0x01, 0xFF, memory.clone());
 
     // Execute
@@ -124,7 +129,7 @@ fn stack_pull_test() {
 #[test]
 fn status_flag_set_test() {
     // Set up
-    let mut flag_register = ProcessorStatusRegister::new();
+    let mut flag_register = StatusRegister::new();
 
     // Execute
     for flag in StatusFlags::iter() {
@@ -140,7 +145,7 @@ fn status_flag_set_test() {
 #[test]
 fn status_flag_check() {
     // Set up
-    let mut flag_register = ProcessorStatusRegister::new();
+    let mut flag_register = StatusRegister::new();
     let expected_flags: u8 = 0b01100011;
     let set_flags = [StatusFlags::Zero, StatusFlags::Carry, StatusFlags::Overflow];
 
@@ -162,7 +167,7 @@ fn status_flag_check() {
 #[test]
 fn set_flag_mask_test() {
     // Set up
-    let mut flag_register = ProcessorStatusRegister::new();
+    let mut flag_register = StatusRegister::new();
     let mask: u8 = 0b01100011;
 
     // Execute
@@ -175,7 +180,7 @@ fn set_flag_mask_test() {
 #[test]
 fn clear_flag_mask_test() {
     // Set up
-    let mut flag_register = ProcessorStatusRegister::new();
+    let mut flag_register = StatusRegister::new();
     let mask: u8 = 0b01100011;
     let expected_flag_state = 0b00100000;
 

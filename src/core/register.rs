@@ -205,7 +205,6 @@ impl StatusRegister {
         let a = first_operand as u16;
         let b = second_operand as u16;
         let true_sum = a + b;
-        println!("True sum: {}", true_sum);
         let carry_flag = 0x100 & true_sum;
 
         if carry_flag != 0 {
@@ -233,8 +232,8 @@ impl StatusRegister {
             self.set_flag(StatusFlags::Negative);
             self.clear_flag(StatusFlags::Zero);
         } else if signed_data == 0 {
-            self.set_flag(StatusFlags::Zero);
             self.clear_flag(StatusFlags::Negative);
+            self.set_flag(StatusFlags::Zero);
         } else {
             self.clear_flag(StatusFlags::Negative);
             self.clear_flag(StatusFlags::Zero);

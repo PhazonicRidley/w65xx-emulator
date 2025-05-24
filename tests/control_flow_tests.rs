@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 use w65xx_emulator::core::cpu::CPU;
-use w65xx_emulator::core::instructions::utils::AddressingModes;
+use w65xx_emulator::core::instructions::utils::{AddressingModes, BranchMode};
 use w65xx_emulator::core::register::StatusFlags;
 use w65xx_emulator::peripherals::memory::VirtualMemory;
 
@@ -24,15 +24,18 @@ fn test_setup() -> CPU {
 fn compare_gt_test() {
     // Setup
     let mut cpu = test_setup();
+    let value: u8 = 0x81;
+    cpu.accumulator_cell.borrow_mut().value = value;
 
     // Execute
-    cpu.accumulator_cell.borrow_mut().value = 0x2;
     cpu.compare(&AddressingModes::Immediate, cpu.accumulator_cell.clone());
 
     // Verify
+    let sfr = &cpu.processor_status_flags;
     assert!(
-        cpu.processor_status_flags.check_flag(StatusFlags::Carry)
-            && !cpu.processor_status_flags.check_flag(StatusFlags::Zero)
+        !sfr.check_flag(StatusFlags::Zero)
+            && sfr.check_flag(StatusFlags::Carry)
+            && sfr.check_flag(StatusFlags::Negative) == ((value & 128) != 0)
     );
 }
 
@@ -40,19 +43,22 @@ fn compare_gt_test() {
 fn compare_lt_test() {
     // Setup
     let mut cpu = test_setup();
+    let value: u8 = 1;
+    cpu.accumulator_cell.borrow_mut().value = value;
+    cpu.x_cell.borrow_mut().value = 2;
 
     // Execute
-    cpu.accumulator_cell.borrow_mut().value = 1;
-    cpu.x_cell.borrow_mut().value = 2;
     cpu.compare(
         &AddressingModes::AbsoluteXIndex,
         cpu.accumulator_cell.clone(),
     );
 
     // Verify
+    let sfr = &cpu.processor_status_flags;
     assert!(
-        !cpu.processor_status_flags.check_flag(StatusFlags::Carry)
-            && !cpu.processor_status_flags.check_flag(StatusFlags::Zero)
+        !sfr.check_flag(StatusFlags::Zero)
+            && !sfr.check_flag(StatusFlags::Carry)
+            && sfr.check_flag(StatusFlags::Negative) == ((value & 128) != 0)
     );
 }
 
@@ -68,8 +74,8 @@ fn compare_eq_test() {
     // Verify
     let sfr = &cpu.processor_status_flags;
     assert!(
-        sfr.check_flag(StatusFlags::Carry)
-            && sfr.check_flag(StatusFlags::Zero)
+        sfr.check_flag(StatusFlags::Zero)
+            && sfr.check_flag(StatusFlags::Carry)
             && !sfr.check_flag(StatusFlags::Negative)
     );
 }
@@ -115,4 +121,19 @@ fn subroutine_test() {
     assert_eq!(cpu.program_counter.value, next_pc);
     let sp = 0x0100 | cpu.stack_pointer.get_pointer() as u16;
     assert_eq!(sp, 0x01ff);
+}
+
+#[test]
+fn branching_test() {
+    // Setup
+    let mut cpu = test_setup();
+    let expected_value: u16 = 0xff20;
+    cpu.memory_rc.borrow_mut()[0xff01] = (expected_value & 0xFF) as u8;
+
+    // Execute
+    cpu.processor_status_flags.set_flag(StatusFlags::Carry);
+    cpu.branch_exec(BranchMode::BCS);
+
+    // Verify
+    assert_eq!(cpu.program_counter.value, expected_value);
 }

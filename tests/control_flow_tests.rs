@@ -77,4 +77,42 @@ fn compare_eq_test() {
 #[test]
 fn jump_test() {
     // Setup
+    let mut cpu = test_setup();
+    cpu.memory_rc.borrow_mut()[0x0201] = !2 + 1;
+
+    // Execute
+    cpu.jump(&AddressingModes::Absolute, false, false);
+
+    // Verify
+    assert_eq!(cpu.program_counter.value, 0xfefe);
+}
+
+#[test]
+fn subroutine_test() {
+    // Setup
+    let mut cpu = test_setup();
+    cpu.memory_rc.borrow_mut()[0x0201] = 20;
+    let next_pc = cpu.program_counter.value + 1;
+
+    // Execute (JSR)
+    cpu.jump(&AddressingModes::Absolute, true, false);
+
+    // Verify (JSR)
+    assert_eq!(cpu.program_counter.value, 0xff14);
+    {
+        let sp = 0x0100 | cpu.stack_pointer.get_pointer() as u16;
+        let memory = cpu.memory_rc.borrow();
+        let pcl = memory[sp + 1];
+        let pch = memory[sp + 2];
+        assert_eq!(pcl, 0x00);
+        assert_eq!(pch, 0xff);
+    }
+
+    // Execute (RTS)
+    cpu.subroutine_return();
+
+    // Verify (RTS)
+    assert_eq!(cpu.program_counter.value, next_pc);
+    let sp = 0x0100 | cpu.stack_pointer.get_pointer() as u16;
+    assert_eq!(sp, 0x01ff);
 }

@@ -105,9 +105,9 @@ fn stack_push_test() {
 
     // Verify
     let mem_inner = memory.borrow();
-    assert_eq!(mem_inner[0xFF], 0x01);
-    assert_eq!(mem_inner[0xFE], 0x02);
-    assert_eq!(mem_inner[0xFD], 0x03);
+    assert_eq!(mem_inner[0x01FF], 0x01);
+    assert_eq!(mem_inner[0x01FE], 0x02);
+    assert_eq!(mem_inner[0x01FD], 0x03);
 }
 
 #[test]

@@ -102,12 +102,12 @@ impl StackPointerRegister {
     }
 
     pub fn push(&mut self, p_data: u8) {
-        self.memory_rc.borrow_mut()[self.pointer as u16] = p_data;
+        self.memory_rc.borrow_mut()[((self.page as u16) << 8) | self.pointer as u16] = p_data;
         self.pointer = self.pointer.wrapping_sub(1); // decrement stack pointer, allows for overflows
     }
     pub fn pop(&mut self) -> u8 {
         self.pointer = self.pointer.wrapping_add(1); // increment stack pointer, allows for overflows
-        let byte = self.memory_rc.borrow()[self.pointer as u16];
+        let byte = self.memory_rc.borrow()[((self.page as u16) << 8) | self.pointer as u16];
         return byte;
     }
 
@@ -205,7 +205,6 @@ impl StatusRegister {
         let a = first_operand as u16;
         let b = second_operand as u16;
         let true_sum = a + b;
-        println!("True sum: {}", true_sum);
         let carry_flag = 0x100 & true_sum;
 
         if carry_flag != 0 {
@@ -233,8 +232,8 @@ impl StatusRegister {
             self.set_flag(StatusFlags::Negative);
             self.clear_flag(StatusFlags::Zero);
         } else if signed_data == 0 {
-            self.set_flag(StatusFlags::Zero);
             self.clear_flag(StatusFlags::Negative);
+            self.set_flag(StatusFlags::Zero);
         } else {
             self.clear_flag(StatusFlags::Negative);
             self.clear_flag(StatusFlags::Zero);

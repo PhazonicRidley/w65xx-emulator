@@ -12,21 +12,23 @@ pub fn add_two_numbers(status_flags: &mut StatusRegister, first: u8, second: u8)
     let second_operand = second + carry_flag;
     let sum = first.wrapping_add(second_operand);
     status_flags.add_update_carry_flag(first, second_operand);
-    status_flags.update_overflow_flag(first, second, sum);
     status_flags.update_nz_flags(sum);
 
     return sum;
 }
+
 // ADC, SBC
 impl CPU {
     pub fn sum_with_carry(&mut self, addressing_mode: &AddressingModes, subtract: bool) {
         let address = self.fetch_address(&addressing_mode).unwrap(); // Should always return an address, this does not support an addressing mode that doesn't
-        let mut memory_data = self.memory_rc.borrow_mut()[address];
+        let mut memory_data = self.memory_rc.borrow()[address];
         if subtract {
             memory_data = !memory_data;
         }
         let acc_data = self.accumulator_cell.borrow().value;
         let sum = add_two_numbers(&mut self.processor_status_flags, acc_data, memory_data);
+        self.processor_status_flags
+            .update_overflow_flag(acc_data, memory_data, sum);
         self.accumulator_cell.borrow_mut().value = sum;
         self.program_counter
             .increment(addressing_mode.parameter_bytes());
